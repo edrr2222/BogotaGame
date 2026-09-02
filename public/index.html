@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<title>Ciudades Expandidas — Bogotá</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.70.0/phaser.min.js"></script>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="game-root"></div>
+
+<div id="setup-overlay" hidden>
+  <div id="setup-panel">
+    <h1>Antes de caminar</h1>
+    <p class="setup-hint">Dale un nombre a quien va a recorrer la ciudad, y elige con qué cara la va a caminar.</p>
+
+    <label for="player-name">Tu nombre</label>
+    <input id="player-name" type="text" maxlength="40" autocomplete="off" placeholder="¿Cómo te llamas?" />
+
+    <p class="setup-hint">Elige tu personaje</p>
+    <div id="avatar-grid"></div>
+
+    <p id="setup-error" class="setup-error"></p>
+    <button id="confirm-setup" type="button">Confirmar y empezar</button>
+  </div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

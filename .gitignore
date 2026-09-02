@@ -1,0 +1,8 @@
+node_modules/
+server/data/*.json
+.env.local
+.claude/
+
+# Referencia sin recortar de cada pieza generada con IA (fondo magenta sin
+# quitar) — solo sirve para depurar el chroma-key, no lo usa el juego.
+assets/**/generado/*_raw.png

@@ -1,0 +1,1040 @@
+:: StoryTitle
+Ciudades Expandidas — Bogotá (localidades + selector aleatorio + día/noche)
+
+:: StoryData
+{
+  "ifid": "REEMPLAZAR-CON-UN-UUID-CUALQUIERA",
+  "format": "Harlowe",
+  "format-version": "3.3.9",
+  "start": "Inicio"
+}
+
+:: Inicio
+La ciudad todavía no tiene forma. Algo despierta en ti, sin nombre, sin
+cuerpo definido — apenas una sensación de estar por primera vez en
+alguna parte.
+
+No sabes todavía que cada decisión que tomes en las próximas horas va a
+quedar marcada en algo. Solo sabes que tienes que caminar.
+
+(set: $solidaridad to 0)
+(set: $tolerancia to 0)
+(set: $memoria to 0)
+(set: $empatia to 0)
+(set: $confianza to 0)
+(set: $autenticidad to 0)
+(set: $conciencia to 0)
+(set: $legalidad to 0)
+(set: $visitadas to (a:))
+(set: $orden to (shuffled: "Chapinero", "La Candelaria", "San Cristóbal", "Kennedy", "Ciudad Bolívar", "Suba", "Puente Aranda", "Usme"))
+
+[[Empezar a caminar->Selector]]
+
+:: Selector
+La ciudad sigue abierta en todas direcciones. Puedes seguir caminando
+hacia otra localidad, o quedarte aquí con lo que ya decidiste hasta
+ahora — la entidad se revela con lo que tenga en ese momento, esté
+completa o no.
+
+[[Seguir caminando hacia otra localidad->Siguiente Localidad]]
+[[Terminar aquí el recorrido->Revelación final]]
+
+:: Siguiente Localidad
+{(if: $orden's length is 0)[
+  (goto: "Revelación final")
+](else:)[
+  (set: $momento to (either: "Día", "Noche"))
+  (set: $siguienteNombre to $orden's 1st)
+  (set: $orden to (subarray: $orden, 2, $orden's length))
+  (set: $visitadas to $visitadas + (a: $siguienteNombre))
+  (goto: $siguienteNombre + ": Entrada")
+]}
+
+:: Chapinero: Entrada
+(set: $tolerancia to (either: $tolerancia, 0))
+
+(if: $momento is "Noche")[
+Cae la noche en Chapinero. Luces de neón, música que se escapa de los
+bares, gente que se arregla frente a las vitrinas como si la calle
+fuera un espejo.
+](else:)[
+Es de día en Chapinero. Las vitrinas de los bares están cerradas y en
+su lugar hay cafés, tiendas de ropa y gente caminando con afán hacia
+el trabajo. El barrio se ve distinto sin la fiesta encima.
+]
+
+En la puerta de un local, un grupo hace una colecta de ropa y plata
+para un chico al que su familia echó de la casa hace unos días.
+
+[[Detenerte a colaborar->Chapinero: Colaborar]]
+[[Seguir de largo, no es tu problema->Chapinero: Seguir]]
+
+:: Chapinero: Colaborar
+(if: $momento is "Noche")[
+(set: $tolerancia to $tolerancia + 2)
+Te detienes, en medio del ruido y las luces, preguntas qué necesita,
+dejas algo de plata. Alguien del grupo te cuenta la historia sin que
+se la pidas, como si la noche hiciera más fácil hablar de lo que
+duele.
+](else:)[
+(set: $tolerancia to $tolerancia + 1)
+Te detienes un momento, aunque vas de afán como todo el mundo a esta
+hora. Dejas algo de plata y sigues, sin mucho tiempo para quedarte a
+escuchar más.
+]
+
+Algo en la entidad se afloja un poco, como un puño que se abre.
+
+[[Seguir caminando->Chapinero: Fiesta]]
+
+:: Chapinero: Seguir
+(if: $momento is "Noche")[
+(set: $tolerancia to $tolerancia - 2)
+Aceleras el paso entre la música y las luces. Alcanzas a pensar "eso
+no es asunto mío" antes de perderte entre la gente que sale a
+rumbear.
+](else:)[
+(set: $tolerancia to $tolerancia - 1)
+Sigues de largo, apurado. Ni siquiera te detienes a mirar bien de qué
+se trata.
+]
+
+La calle sigue igual, como si nada hubiera pasado — porque para ti,
+nada pasó.
+
+[[Seguir caminando->Chapinero: Fiesta]]
+
+:: Chapinero: Fiesta
+(if: $momento is "Noche")[
+Entras a una fiesta con un conocido. En un momento, él señala a un
+grupo que baila junto a la barra y suelta un comentario burlón sobre
+cómo se visten y se mueven.
+](else:)[
+Te encuentras con un conocido en un café. Mientras hablan, señala por
+la ventana a alguien que camina por la calle y suelta el mismo tipo
+de comentario burlón, ahora en voz baja, entre risas.
+]
+
+(if: $tolerancia > 0)[
+La entidad, todavía sin cara, siente el comentario como un ruido fuera
+de lugar — algo que no encaja con lo que empezó a sentir hace un
+momento.
+](else:)[
+La entidad no reacciona todavía a comentarios así. Los registra, nada
+más, como datos sin peso.
+]
+
+[[Decirle que no te parece gracioso->Chapinero: Defender]]
+[[Reírte también, para no incomodar->Chapinero: Reír]]
+
+:: Chapinero: Defender
+(if: $momento is "Noche")[
+(set: $tolerancia to $tolerancia + 2)
+Le dices que no le ves la gracia, con la música de fondo. Se queda un
+poco descolocado, cambia de tema. No es una gran victoria, pero
+tampoco te quedaste callado.
+](else:)[
+(set: $tolerancia to $tolerancia + 1)
+Le dices, con calma, que no le ves la gracia. Se encoge de hombros y
+sigue tomando su café.
+]
+
+[[Continuar recorrido->Chapinero: Cierre]]
+
+:: Chapinero: Reír
+(if: $momento is "Noche")[
+(set: $tolerancia to $tolerancia - 2)
+Te ríes también, fuerte, para no quedar mal frente al grupo. El
+comentario se queda flotando un rato en el aire, y en ti también.
+](else:)[
+(set: $tolerancia to $tolerancia - 1)
+Sueltas una risa incómoda y cambias de tema tú mismo, sin decir nada
+más.
+]
+
+[[Continuar recorrido->Chapinero: Cierre]]
+
+:: Chapinero: Cierre
+(if: $tolerancia >= 2)[
+La entidad sale de Chapinero con algo más suelto en los gestos, como
+alguien que dejó de necesitar que todo el mundo se pareciera a ella
+para sentirse cómoda.
+](else-if: $tolerancia <= -2)[
+La entidad sale de Chapinero más rígida, más pendiente de quién es
+"normal" y quién no. Aprendió a incomodarse con lo distinto.
+](else:)[
+La entidad sale de Chapinero sin definirse del todo — el barrio le dio
+señales mezcladas, como casi siempre pasa con la gente.
+]
+
+(if: $confianza is not undefined and $confianza < 0)[
+*(Por un instante, algo le recuerda lo que sintió en Ciudad Bolívar,
+aunque no sabría explicar por qué.)*
+]
+
+[[Continuar el recorrido->Selector]]
+
+:: La Candelaria: Entrada
+(set: $memoria to (either: $memoria, 0))
+
+(if: $momento is "Noche")[
+Caminas de noche por calles empedradas de La Candelaria, casi vacías.
+Un señor mayor, sentado en la puerta de su casa con un tinto en la
+mano, empieza a contarte cómo era el barrio antes de que llegaran los
+hostales y los bares para turistas.
+](else:)[
+Caminas de día por calles empedradas de La Candelaria, llenas de
+turistas con cámaras. Un señor mayor, sentado en la puerta de su
+casa, intenta contarte una historia del barrio mientras la gente pasa
+tomándole fotos a la fachada, sin mirarlo a él.
+]
+
+Nadie más se ha detenido a escucharlo en toda la jornada.
+
+[[Sentarte un rato a escucharlo->La Candelaria: Escuchar]]
+[[Seguir tu camino, tienes afán->La Candelaria: Seguir]]
+
+:: La Candelaria: Escuchar
+(if: $momento is "Noche")[
+(set: $memoria to $memoria + 2)
+Te sientas en el andén, en silencio, con la calle casi para ustedes
+dos. Te habla de un incendio, de una plaza que ya no existe, de
+vecinos que se fueron sin despedirse. La noche hace que la historia
+pese más.
+](else:)[
+(set: $memoria to $memoria + 1)
+Te sientas un momento, entre el ruido de los turistas. Te cuenta un
+poco de la historia del barrio, aunque los dos saben que no es el
+mejor momento ni el mejor lugar para contarla completa.
+]
+
+[[Seguir caminando->La Candelaria: Casa]]
+
+:: La Candelaria: Seguir
+(if: $momento is "Noche")[
+(set: $memoria to $memoria - 2)
+Sigues de largo por la calle solitaria. El señor se queda hablándole
+casi al aire, y el silencio de la noche hace que se note más lo solo
+que se quedó.
+](else:)[
+(set: $memoria to $memoria - 1)
+Sigues de largo entre los turistas. Ya estás pensando en la siguiente
+foto que vas a tomar.
+]
+
+[[Seguir caminando->La Candelaria: Casa]]
+
+:: La Candelaria: Casa
+(if: $momento is "Noche")[
+Pasas frente a una casa colonial en obra, cerrada por la hora. Bajo la
+luz de un poste, ves apoyada contra la pared una placa de bronce
+vieja que alguien dejó ahí, como esperando a que se la lleve el
+reciclaje.
+](else:)[
+Pasas frente a una casa colonial en obra: la están convirtiendo en
+hostal. Un obrero está a punto de arrancar una placa de bronce vieja,
+casi ilegible, que nadie parece haber mirado en años.
+]
+
+(if: $memoria > 0)[
+La entidad se detiene, como si algo dentro de ella insistiera en que
+esa placa significa algo, aunque no pueda leerla del todo.
+](else:)[
+La entidad no le presta atención a la placa. Una pared es una pared.
+]
+
+[[Rescatarla o avisar que la conserven->La Candelaria: Avisar]]
+[[Seguir de largo, no es tu casa->La Candelaria: Ignorar]]
+
+:: La Candelaria: Avisar
+(if: $momento is "Noche")[
+(set: $memoria to $memoria + 2)
+Casi sin pensarlo, guardas la placa contigo, decidido a averiguar de
+qué casa era y a quién avisarle. En la calle vacía, ese pequeño gesto
+se siente más grande de lo que debería.
+](else:)[
+(set: $memoria to $memoria + 1)
+Le pides al obrero que espere y avisas a alguien encargado. Se encoge
+de hombros pero espera. Al menos por hoy, esa memoria no desaparece
+sin que nadie se dé cuenta.
+]
+
+[[Continuar recorrido->La Candelaria: Cierre]]
+
+:: La Candelaria: Ignorar
+(if: $momento is "Noche")[
+(set: $memoria to $memoria - 2)
+Sigues caminando por la calle sola. Detrás de ti, la placa se queda
+apoyada en la pared, y la oscuridad se encarga de que nadie más la
+note tampoco.
+](else:)[
+(set: $memoria to $memoria - 1)
+Sigues caminando. Detrás de ti, se escucha el golpe seco de la placa
+cayendo al piso, y luego nada — la obra continúa como si no hubiera
+pasado nada.
+]
+
+[[Continuar recorrido->La Candelaria: Cierre]]
+
+:: La Candelaria: Cierre
+(if: $memoria >= 2)[
+La entidad sale de La Candelaria cargando algo parecido a la memoria
+de otros — como si hubiera aprendido que las cosas viejas también
+piden que alguien las mire antes de irse.
+](else-if: $memoria <= -2)[
+La entidad sale de La Candelaria más liviana pero también más vacía,
+sin ningún peso del pasado encima.
+](else:)[
+La entidad sale de La Candelaria sin terminar de decidir qué tan
+importante es lo que ya pasó.
+]
+
+[[Continuar el recorrido->Selector]]
+
+:: San Cristóbal: Entrada
+(set: $empatia to (either: $empatia, 0))
+
+(if: $momento is "Noche")[
+Subes de noche por las laderas de San Cristóbal, con muy poca luz en
+las calles. Una chica de tu edad, sentada en un andén casi a oscuras,
+te pregunta si tienes tiempo — necesita contarle a alguien que hoy se
+cumplen tres años desde que su familia tuvo que salir de su pueblo.
+](else:)[
+Subes de día por las laderas de San Cristóbal. El camino es empinado
+y las casas parecen apiladas una sobre otra. Una chica de tu edad, en
+la puerta de su casa, te pregunta si tienes tiempo para escucharla
+mientras cuelga la ropa — hoy se cumplen tres años desde que su
+familia tuvo que salir de su pueblo.
+]
+
+[[Quedarte a escucharla->San Cristóbal: Escuchar]]
+[[Decirle que vas de afán->San Cristóbal: Afán]]
+
+:: San Cristóbal: Escuchar
+(if: $momento is "Noche")[
+(set: $empatia to $empatia + 2)
+Te sientas con ella, en la oscuridad. Te cuenta del desplazamiento, de
+la casa que dejaron armada de golpe, de lo raro que es que el barrio
+que la recibió ahora también se sienta amenazado por un derrumbe. La
+oscuridad hace que las palabras pesen distinto.
+](else:)[
+(set: $empatia to $empatia + 1)
+Te sientas con ella un rato, mientras cuelga la ropa. Te cuenta del
+desplazamiento, aunque entre interrupciones de vecinos que pasan y
+saludan.
+]
+
+[[Seguir subiendo->San Cristóbal: Minga]]
+
+:: San Cristóbal: Afán
+(if: $momento is "Noche")[
+(set: $empatia to $empatia - 2)
+Le dices que vas tarde y sigues subiendo, en la oscuridad. Ella
+asiente, apenas visible, como quien ya está acostumbrada a que nadie
+tenga tiempo para su historia.
+](else:)[
+(set: $empatia to $empatia - 1)
+Le dices que vas de afán y sigues subiendo. Ella sigue colgando ropa,
+sin darle mucha importancia.
+]
+
+[[Seguir subiendo->San Cristóbal: Minga]]
+
+:: San Cristóbal: Minga
+(if: $momento is "Noche")[
+Más arriba, a la luz de unas linternas, un grupo de vecinos está
+reforzando de urgencia un muro que amenaza con ceder si llueve esta
+misma noche. Alguien te grita que hacen falta manos, antes de que sea
+tarde.
+](else:)[
+Más arriba, un grupo de vecinos está reforzando con costales y
+varillas un muro que amenaza con ceder en la próxima lluvia fuerte.
+Alguien te grita, medio en broma, que hacen falta manos.
+]
+
+(if: $empatia > 0)[
+La entidad reconoce algo en esa urgencia — el mismo peso que sintió
+hace un momento en la historia de la chica del andén.
+](else:)[
+La entidad ve la escena de lejos, como quien mira un problema que no
+es suyo.
+]
+
+[[Sumarte a la minga->San Cristóbal: Ayudar]]
+[[Seguir tu camino->San Cristóbal: Pasar]]
+
+:: San Cristóbal: Ayudar
+(if: $momento is "Noche")[
+(set: $empatia to $empatia + 2)
+Te quedas horas cargando costales a oscuras, con la lluvia empezando a
+caer. Nadie te lo agradece de forma especial — aquí ayudarse de noche,
+con urgencia, es lo normal.
+](else:)[
+(set: $empatia to $empatia + 1)
+Te quedas una hora cargando costales, con calma, mientras el sol
+todavía pega fuerte.
+]
+
+[[Continuar recorrido->San Cristóbal: Cierre]]
+
+:: San Cristóbal: Pasar
+(if: $momento is "Noche")[
+(set: $empatia to $empatia - 2)
+Sigues de largo en la oscuridad. El muro sigue ahí, sostenido apenas
+por las manos de los que sí se quedaron a pesar de la hora.
+](else:)[
+(set: $empatia to $empatia - 1)
+Sigues de largo. El muro sigue ahí, sostenido por los que sí se
+quedaron.
+]
+
+[[Continuar recorrido->San Cristóbal: Cierre]]
+
+:: San Cristóbal: Cierre
+(if: $empatia >= 2)[
+La entidad sale de San Cristóbal con algo más blando en la mirada,
+como si hubiera aprendido a sentir el dolor ajeno sin necesitar
+vivirlo primero.
+](else-if: $empatia <= -2)[
+La entidad sale de San Cristóbal más distante, más acostumbrada a ver
+el sufrimiento de otros sin que le llegue del todo.
+](else:)[
+La entidad sale de San Cristóbal sin terminar de decidir cuánto le
+duele lo que le duele a otros.
+]
+
+[[Continuar el recorrido->Selector]]
+
+:: Kennedy: Entrada
+(set: $solidaridad to (either: $solidaridad, 0))
+
+(if: $momento is "Noche")[
+Bajas del bus en Kennedy ya de noche. El mercado está cerrando, quedan
+pocos puestos con luz propia y el ruido del día se apagó casi por
+completo. Una señora mayor, apurada por llegar a su casa, va cargando
+dos bolsas enormes y se le resbala una.
+](else:)[
+Bajas del bus en Kennedy en pleno día. El ruido del mercado te
+envuelve: pregones, pitos, el olor a fritanga mezclado con gasolina.
+Vas tarde, pero una señora mayor va cargando dos bolsas enormes y se
+le resbala una.
+]
+
+[[Ayudarle a cargar las bolsas->Kennedy: Ayudar]]
+[[Seguir de largo, no tienes tiempo->Kennedy: Seguir]]
+
+:: Kennedy: Ayudar
+(if: $momento is "Noche")[
+(set: $solidaridad to $solidaridad + 2)
+Le cargas las bolsas hasta su casa, ya casi sin nadie más en la calle.
+Ella te agradece con una fruta que saca de una de las bolsas,
+sorprendida de que alguien se detenga a esta hora.
+](else:)[
+(set: $solidaridad to $solidaridad + 1)
+Le cargas las bolsas hasta la esquina, entre el bullicio del mercado.
+Ella te agradece con una fruta, casi como un reflejo, sin pensarlo.
+]
+
+Sientes, sin saber bien por qué, que algo dentro de ti se acomoda distinto.
+
+[[Seguir caminando->Kennedy: Puesto de arepas]]
+
+:: Kennedy: Seguir
+(if: $momento is "Noche")[
+(set: $solidaridad to $solidaridad - 2)
+Sigues de largo por la calle casi vacía. La señora se las arregla
+sola, resoplando, sin nadie más cerca que pueda ayudarla.
+](else:)[
+(set: $solidaridad to $solidaridad - 1)
+Sigues de largo entre el bullicio. La señora se las arregla sola,
+resoplando, mientras te alejas. Nadie más se detiene tampoco.
+]
+
+Vas más rápido, pero algo en ti queda un poco más frío.
+
+[[Seguir caminando->Kennedy: Puesto de arepas]]
+
+:: Kennedy: Puesto de arepas
+(if: $momento is "Noche")[
+Un vendedor de arepas, de los pocos que quedan abiertos, te llama
+desde su carreta antes de recoger por hoy. El precio que te dice es
+más alto de lo normal — parece que ya calculó que no eres de por ahí,
+y que a esta hora tienes pocas opciones.
+](else:)[
+Un vendedor de arepas te llama desde su carreta. El precio que te dice
+es más alto de lo normal — parece que ya calculó que no eres de por
+ahí.
+]
+
+(if: $solidaridad > 0)[
+La entidad, todavía sin forma clara, murmura algo parecido a: *"la señora
+tampoco tenía de sobra, y aun así te dio algo..."*
+](else:)[
+La entidad no dice nada. Solo observa, fría, calculando.
+]
+
+[[Pagar lo que pide sin problema->Kennedy: Pagar completo]]
+[[Regatear el precio->Kennedy: Regatear]]
+
+:: Kennedy: Pagar completo
+(if: $momento is "Noche")[
+(set: $solidaridad to $solidaridad + 2)
+Pagas sin quejarte, pensando en que él también quiere irse a dormir.
+Te mira un segundo de más, y te da una arepa extra "de una", con algo
+parecido al alivio.
+](else:)[
+(set: $solidaridad to $solidaridad + 1)
+Pagas sin quejarte. El vendedor te mira un segundo de más, como si no
+esperara eso, y te da una arepa extra "de una".
+]
+
+[[Continuar recorrido->Kennedy: Cierre]]
+
+:: Kennedy: Regatear
+(if: $momento is "Noche")[
+(set: $solidaridad to $solidaridad - 2)
+Regateas hasta bajar el precio, aprovechando que ya quiere cerrar.
+Ganas dos mil pesos. Él guarda la moneda sin decir nada, con la cara
+de alguien que ya no espera nada de nadie, y menos a esta hora.
+](else:)[
+(set: $solidaridad to $solidaridad - 1)
+Regateas hasta bajar el precio. Ganas dos mil pesos. El vendedor no
+dice nada, pero guarda la moneda distinto.
+]
+
+[[Continuar recorrido->Kennedy: Cierre]]
+
+:: Kennedy: Cierre
+(if: $solidaridad >= 2)[
+La entidad, al salir de Kennedy, tiene un poco más de peso — como si
+cargar algo por otro le hubiera dado forma. Algo en su postura empieza a
+parecerse a alguien que se detiene cuando otro necesita ayuda.
+](else-if: $solidaridad <= -2)[
+La entidad sale de Kennedy más angulosa, más rápida en sus movimientos.
+Empieza a parecerse a alguien que aprendió a no detenerse por nadie.
+](else:)[
+La entidad sale de Kennedy sin definirse todavía del todo — Kennedy le dio
+señales mixtas, como casi siempre pasa con la gente.
+]
+
+(if: $confianza is not undefined and $confianza < 0)[
+*(La entidad recuerda, por un instante, lo que pasó en Ciudad Bolívar. No
+lo dice en voz alta, pero se le nota.)*
+]
+
+[[Continuar el recorrido->Selector]]
+
+:: Ciudad Bolívar: Entrada
+(set: $confianza to (either: $confianza, 0))
+
+(if: $momento is "Noche")[
+En Ciudad Bolívar, de noche, un grupo de jóvenes termina de pintar un
+mural enorme a la luz de un poste. Uno de ellos te reconoce como
+forastero y te invita a subir con ellos hasta un mirador — hay que
+atravesar un par de calles que, de noche, mucha gente evita todavía
+más.
+](else:)[
+En Ciudad Bolívar, de día, un grupo de jóvenes pinta un mural enorme
+en la fachada de un colegio. Uno de ellos te reconoce como forastero y
+te invita a subir con ellos hasta un mirador que, según dice, tiene
+"la mejor vista de todo Bogotá".
+]
+
+[[Confiar e ir con ellos->Ciudad Bolívar: Confiar]]
+[[Decir que no, mejor te quedas aquí->Ciudad Bolívar: Rechazar]]
+
+:: Ciudad Bolívar: Confiar
+(if: $momento is "Noche")[
+(set: $confianza to $confianza + 2)
+Subes con ellos de noche. El camino es empinado y casi no hay luz,
+pero nadie te hace sentir fuera de lugar. Desde arriba, las luces de
+la ciudad se ven enormes, y por un momento el miedo que traías se
+siente exagerado.
+](else:)[
+(set: $confianza to $confianza + 1)
+Subes con ellos de día. El camino es empinado y las calles son
+estrechas, pero nadie te hace sentir fuera de lugar. Desde arriba, la
+ciudad se ve enorme.
+]
+
+[[Seguir con ellos->Ciudad Bolívar: Advertencia]]
+
+:: Ciudad Bolívar: Rechazar
+(if: $momento is "Noche")[
+(set: $confianza to $confianza - 2)
+Les dices que no, de noche te da más miedo todavía. Ellos no
+insisten — ya están acostumbrados a que la gente de afuera desconfíe
+más cuando oscurece. Siguen su camino sin ti.
+](else:)[
+(set: $confianza to $confianza - 1)
+Les dices que no, con una excusa cualquiera. Ellos no insisten y
+siguen su camino sin ti.
+]
+
+[[Seguir tu camino->Ciudad Bolívar: Advertencia]]
+
+:: Ciudad Bolívar: Advertencia
+Una señora del barrio te ve cerca del grupo y te advierte en voz baja:
+"tenga cuidado con esos muchachos, por acá esos son de cuidado(if:
+$momento is "Noche")[, y más de noche]".
+
+(if: $confianza > 0)[
+La entidad ya sintió otra cosa hace un momento, y esa advertencia le
+suena más a costumbre que a verdad.
+](else:)[
+La entidad guarda la advertencia como un dato más que confirma lo que
+ya sospechaba.
+]
+
+[[Seguir confiando en el grupo->Ciudad Bolívar: Seguir confiando]]
+[[Alejarte, por si acaso->Ciudad Bolívar: Alejarte]]
+
+:: Ciudad Bolívar: Seguir confiando
+(if: $momento is "Noche")[
+(set: $confianza to $confianza + 2)
+Te quedas con ellos hasta terminar el mural, ya entrada la noche.
+Alguien escribe tu nombre en una esquina pequeña, y por un momento
+sientes que la oscuridad del barrio no era lo que te habían contado.
+](else:)[
+(set: $confianza to $confianza + 1)
+Te quedas con ellos hasta terminar el mural. Al final, alguien escribe
+tu nombre en una esquina pequeña, como parte del grupo por un rato.
+]
+
+[[Continuar recorrido->Ciudad Bolívar: Cierre]]
+
+:: Ciudad Bolívar: Alejarte
+(if: $momento is "Noche")[
+(set: $confianza to $confianza - 2)
+Te alejas rápido, de noche, agradeciendo en silencio la advertencia.
+El mural se termina sin ti, en la oscuridad, y nunca sabrás si tenías
+razón en desconfiar.
+](else:)[
+(set: $confianza to $confianza - 1)
+Te alejas, agradeciendo en silencio la advertencia. El mural se
+termina sin ti.
+]
+
+[[Continuar recorrido->Ciudad Bolívar: Cierre]]
+
+:: Ciudad Bolívar: Cierre
+(if: $confianza >= 2)[
+La entidad sale de Ciudad Bolívar con algo más abierto en el pecho,
+como si hubiera aprendido que el miedo al otro casi nunca viene del
+otro, sino de lo que le contaron sobre él.
+](else-if: $confianza <= -2)[
+La entidad sale de Ciudad Bolívar más cerrada, más pronta a sospechar
+de cualquiera que no se le parezca o que venga de donde le advirtieron
+que no fuera.
+](else:)[
+La entidad sale de Ciudad Bolívar sin terminar de decidir en quién
+confiar.
+]
+
+(if: $solidaridad is not undefined and $solidaridad > 0)[
+*(Algo le recuerda, sin palabras, lo que sintió al ayudar a cargar unas
+bolsas en Kennedy.)*
+]
+
+[[Continuar el recorrido->Selector]]
+
+:: Suba: Entrada
+(set: $autenticidad to (either: $autenticidad, 0))
+
+(if: $momento is "Noche")[
+En Suba, de noche, conoces a un chico que graba contenido para redes
+desde la terraza de su casa, con la ciudad iluminada de fondo. Está
+haciendo un video sobre "la Bogotá real" y te pide que cuentes algo
+tuyo, algo verdadero, frente a la cámara — dice que de noche la gente
+se suelta más.
+](else:)[
+En Suba, en pleno día, conoces a un chico que graba contenido para
+redes desde la terraza de su casa. Está haciendo un video sobre "la
+Bogotá real" y te pide que cuentes algo tuyo, algo verdadero, frente a
+la cámara.
+]
+
+[[Contar algo real, aunque incómodo->Suba: Contar verdad]]
+[[Inventar una historia más interesante->Suba: Inventar]]
+
+:: Suba: Contar verdad
+(if: $momento is "Noche")[
+(set: $autenticidad to $autenticidad + 2)
+De noche, con la ciudad de fondo, cuentas algo que normalmente no
+dirías: una pelea con tu familia, un miedo tonto. Se siente raro,
+pero también más fácil que si fuera de día.
+](else:)[
+(set: $autenticidad to $autenticidad + 1)
+Cuentas algo sencillo pero cierto, aunque te cuesta un poco más
+soltarlo en pleno día, con la luz sobre la cara.
+]
+
+[[Seguir viendo el proceso->Suba: Comentarios]]
+
+:: Suba: Inventar
+(if: $momento is "Noche")[
+(set: $autenticidad to $autenticidad - 2)
+De noche inventas algo todavía más exagerado, pensando en que así el
+video se va a ver mejor iluminado y más dramático. Ni tú mismo te
+crees la historia.
+](else:)[
+(set: $autenticidad to $autenticidad - 1)
+Inventas algo más llamativo, pensando en que así el video le va a
+gustar más a la gente.
+]
+
+[[Seguir viendo el proceso->Suba: Comentarios]]
+
+:: Suba: Comentarios
+El video se publica y, en minutos, empiezan a llegar comentarios crueles
+de gente que no conoce a nadie de los que salen ahí. El chico te
+pregunta, algo desanimado, si debería seguir grabando cosas así o mejor
+hacer lo que sí funciona con el algoritmo.
+
+(if: $autenticidad > 0)[
+La entidad siente que lo honesto de hace un rato vale más que cualquier
+comentario de un desconocido.
+](else:)[
+La entidad no entiende bien por qué molestarse en ser sincero si de
+todas formas la gente va a opinar lo mismo.
+]
+
+[[Animarlo a seguir siendo honesto->Suba: Animar]]
+[[Decirle que mejor haga lo popular->Suba: Aconsejar cinismo]]
+
+:: Suba: Animar
+(if: $momento is "Noche")[
+(set: $autenticidad to $autenticidad + 2)
+Le dices, ya de noche, que lo real siempre incomoda a alguien, y que
+está bien. Se queda pensando un buen rato, con la ciudad prendida de
+fondo, y al final decide dejar el video tal como está.
+](else:)[
+(set: $autenticidad to $autenticidad + 1)
+Le dices que lo real siempre incomoda a alguien, y que está bien. Se
+queda pensando, y al final decide dejar el video tal como está.
+]
+
+[[Continuar recorrido->Suba: Cierre]]
+
+:: Suba: Aconsejar cinismo
+(if: $momento is "Noche")[
+(set: $autenticidad to $autenticidad - 2)
+Le dices que mejor haga lo que funciona. Esa misma noche borra el
+video y graba otro, más pensado para gustar que para ser cierto.
+](else:)[
+(set: $autenticidad to $autenticidad - 1)
+Le dices que mejor haga lo que ya sabe que funciona. Borra el video
+esa misma noche y empieza a grabar otro.
+]
+
+[[Continuar recorrido->Suba: Cierre]]
+
+:: Suba: Cierre
+(if: $autenticidad >= 2)[
+La entidad sale de Suba con algo más propio en la voz, como si hubiera
+entendido que mostrarse de verdad, aunque incomode, vale más que
+encajar.
+](else-if: $autenticidad <= -2)[
+La entidad sale de Suba con una sonrisa más ensayada, más pendiente de
+qué es lo que el resto quiere ver que de lo que ella misma siente.
+](else:)[
+La entidad sale de Suba sin decidir todavía si prefiere ser real o
+ser aceptada.
+]
+
+[[Continuar el recorrido->Selector]]
+
+:: Puente Aranda: Entrada
+(set: $conciencia to (either: $conciencia, 0))
+
+(if: $momento is "Noche")[
+Caminas de noche entre bodegas y fábricas de Puente Aranda. Casi todas
+están cerradas, pero el olor a químicos sigue pegado al aire. Un
+obrero del turno nocturno, en su descanso, te cuenta de corrido que
+lleva años respirando eso mismo todas las noches, y que ya ni lo
+nota.
+](else:)[
+Caminas de día entre bodegas y fábricas de Puente Aranda. El aire
+huele a químicos y hay un ruido constante de maquinaria. Un obrero,
+en su descanso, te cuenta de corrido que lleva años respirando eso
+mismo todos los días.
+]
+
+[[Preguntarle más, interesarte de verdad->Puente Aranda: Preguntar]]
+[[Asentir por cortesía y seguir->Puente Aranda: Asentir]]
+
+:: Puente Aranda: Preguntar
+(if: $momento is "Noche")[
+(set: $conciencia to $conciencia + 2)
+Le haces preguntas, ahí en la oscuridad, casi sin nadie más alrededor
+que pueda escucharlo. Él se sorprende de que alguien pregunte a estas
+horas, cuando ya nadie más pasa por ahí.
+](else:)[
+(set: $conciencia to $conciencia + 1)
+Le haces preguntas: si alguna vez han medido el aire, si hay algo que
+se pueda hacer. Él se sorprende de que alguien pregunte.
+]
+
+[[Seguir caminando->Puente Aranda: Derrame]]
+
+:: Puente Aranda: Asentir
+(if: $momento is "Noche")[
+(set: $conciencia to $conciencia - 2)
+Asientes rápido, con ganas de seguir tu camino antes de que oscurezca
+más. El obrero se queda solo, terminando su cigarrillo en la
+oscuridad.
+](else:)[
+(set: $conciencia to $conciencia - 1)
+Asientes, dices "qué complicado" y sigues caminando.
+]
+
+[[Seguir caminando->Puente Aranda: Derrame]]
+
+:: Puente Aranda: Derrame
+(if: $momento is "Noche")[
+Un poco más adelante, a la luz de un poste, ves un charco de líquido
+oscuro filtrándose desde una bodega hacia una alcantarilla. De noche,
+sin nadie cerca, es más fácil que nadie más lo note nunca.
+](else:)[
+Un poco más adelante ves un charco de líquido oscuro filtrándose desde
+una bodega hacia una alcantarilla, justo frente a un colegio que está
+saliendo a la hora del descanso.
+]
+
+(if: $conciencia > 0)[
+La entidad ya no puede ver eso como algo normal — algo en ella insiste
+en que alguien debería saberlo.
+](else:)[
+La entidad ve el charco como parte del paisaje, sin darle más vueltas.
+]
+
+[[Tomar una foto y anotar la dirección->Puente Aranda: Registrar]]
+[[Seguir caminando, no es tu problema->Puente Aranda: Ignorar]]
+
+:: Puente Aranda: Registrar
+(if: $momento is "Noche")[
+(set: $conciencia to $conciencia + 2)
+Tomas la foto con flash, en la oscuridad, y anotas la dirección
+aproximada. Sabes que, de noche, si tú no lo registras, probablemente
+nadie más lo va a hacer.
+](else:)[
+(set: $conciencia to $conciencia + 1)
+Tomas la foto, anotas la dirección aproximada, pensando en mencionarlo
+después a alguien que pueda hacer algo.
+]
+
+[[Continuar recorrido->Puente Aranda: Cierre]]
+
+:: Puente Aranda: Ignorar
+(if: $momento is "Noche")[
+(set: $conciencia to $conciencia - 2)
+Sigues caminando en la oscuridad. El charco sigue ahí, todavía más
+invisible de noche que de día.
+](else:)[
+(set: $conciencia to $conciencia - 1)
+Sigues caminando. El charco sigue ahí, invisible para todos los que
+pasan igual que tú.
+]
+
+[[Continuar recorrido->Puente Aranda: Cierre]]
+
+:: Puente Aranda: Cierre
+(if: $conciencia >= 2)[
+La entidad sale de Puente Aranda viendo cosas que antes no veía — como
+si hubiera aprendido que lo invisible también le pasa factura a
+alguien.
+](else-if: $conciencia <= -2)[
+La entidad sale de Puente Aranda todavía más acostumbrada a no mirar
+lo que incomoda.
+](else:)[
+La entidad sale de Puente Aranda sin decidir todavía qué tanto le toca
+a ella lo que no ve directamente.
+]
+
+[[Continuar el recorrido->Selector]]
+
+:: Usme: Entrada
+(set: $legalidad to (either: $legalidad, 0))
+
+(if: $momento is "Noche")[
+Llegas de noche al borde rural de Usme, donde la ciudad se deshace en
+potreros y quebradas casi a oscuras. A la luz de una vela, una familia
+te muestra unos papeles: llevan meses en un pleito con una empresa
+por el uso del agua de un nacimiento cercano al que dicen tener
+derecho.
+](else:)[
+Llegas de día al borde rural de Usme, donde la ciudad empieza a
+deshacerse en potreros y quebradas. Una familia te muestra unos
+papeles: llevan meses en un pleito con una empresa por el uso del
+agua de un nacimiento cercano al que dicen tener derecho.
+]
+
+[[Sugerirles que sigan el conducto legal->Usme: Vía legal]]
+[[Sugerirles que resuelvan esto a su manera->Usme: Viveza]]
+
+:: Usme: Vía legal
+(if: $momento is "Noche")[
+(set: $legalidad to $legalidad + 2)
+Les dices, a la luz de la vela, que junten pruebas, que busquen una
+autoridad ambiental, que insistan aunque sea lento. La conversación se
+alarga hasta tarde, como si la noche diera más espacio para pensarlo
+en serio.
+](else:)[
+(set: $legalidad to $legalidad + 1)
+Les dices que junten pruebas, que busquen una autoridad ambiental, que
+insistan aunque sea lento.
+]
+
+[[Seguir camino->Usme: Asamblea]]
+
+:: Usme: Viveza
+(if: $momento is "Noche")[
+(set: $legalidad to $legalidad - 2)
+Les dices, ya cansado por el viaje y la hora, que mejor resuelvan el
+asunto por su cuenta, que el papeleo no lleva a ningún lado. Se
+quedan callados en la penumbra.
+](else:)[
+(set: $legalidad to $legalidad - 1)
+Les dices que mejor resuelvan el asunto por su cuenta, que el papeleo
+no lleva a ningún lado.
+]
+
+[[Seguir camino->Usme: Asamblea]]
+
+:: Usme: Asamblea
+(if: $momento is "Noche")[
+Esa misma noche hay una reunión comunal sobre el mismo tema, alumbrada
+apenas con un par de bombillos. Alguien te cede la palabra. Al mismo
+tiempo, un vecino te ofrece, casi susurrando en la oscuridad, "una
+entrada más rápida" si conoces a alguien en la alcaldía.
+](else:)[
+Esa tarde hay una reunión comunal sobre el mismo tema. Alguien te cede
+la palabra para que cuentes lo que viste. Al mismo tiempo, un vecino
+te ofrece, en voz baja, "una entrada más rápida" si conoces a alguien
+en la alcaldía.
+]
+
+(if: $legalidad > 0)[
+La entidad prefiere, sin dudarlo mucho, la palabra dicha en público
+sobre el atajo susurrado en privado.
+](else:)[
+La entidad no ve gran diferencia entre un camino y otro, si ambos
+llegan al mismo lugar.
+]
+
+[[Hablar en la asamblea->Usme: Hablar]]
+[[Usar el atajo->Usme: Atajo]]
+
+:: Usme: Hablar
+(if: $momento is "Noche")[
+(set: $legalidad to $legalidad + 2)
+Hablas frente a todos, ya de noche, con nervios, contando lo que viste
+en el nacimiento de agua. La asamblea se extiende más de lo previsto,
+pero queda dicho, y queda escuchado por más de uno.
+](else:)[
+(set: $legalidad to $legalidad + 1)
+Hablas frente a todos, con nervios, contando lo que viste en el
+nacimiento de agua.
+]
+
+[[Continuar recorrido->Usme: Cierre]]
+
+:: Usme: Atajo
+(if: $momento is "Noche")[
+(set: $legalidad to $legalidad - 2)
+Usas el contacto esa misma noche para agilizar el trámite. Funciona
+rápido, en la oscuridad y en silencio — pero deja igual de claro que,
+para otros sin ese contacto, el camino sigue siendo el mismo de
+siempre.
+](else:)[
+(set: $legalidad to $legalidad - 1)
+Usas el contacto, agilizas el trámite para la familia. Funciona más
+rápido que cualquier asamblea.
+]
+
+[[Continuar recorrido->Usme: Cierre]]
+
+:: Usme: Cierre
+(if: $legalidad >= 2)[
+La entidad sale de Usme con algo más firme en la postura, como si
+hubiera aprendido a confiar en lo que se hace bien, aunque sea más
+lento.
+](else-if: $legalidad <= -2)[
+La entidad sale de Usme más ágil pero más resbaladiza, aprendiendo que
+casi todo problema tiene un atajo si uno sabe a quién buscar.
+](else:)[
+La entidad sale de Usme sin decidir todavía si el sistema sirve o solo
+estorba.
+]
+
+[[Continuar el recorrido->Selector]]
+
+:: Revelación final
+La entidad se detiene. (if: $visitadas's length >= 8)[Ya no queda
+ninguna calle nueva por caminar — las ocho localidades quedaron atrás,
+cada una dejando algo debajo de la piel que todavía no tenía, unas
+veces bajo el sol y otras bajo la noche.](else:)[No recorriste las
+ocho localidades — decidiste detenerte antes, con (print:
+$visitadas's length) de 8 ya caminadas. La entidad se revela tal como
+quedó, incompleta, con lo que alcanzaste a decidir.]
+
+**Rasgos de la entidad, localidad por localidad:**
+
+(if: $visitadas contains "Chapinero")[- Chapinero → Tolerancia: (print: $tolerancia)](else:)[- Chapinero → Tolerancia: (no recorrida)]
+
+(if: $visitadas contains "La Candelaria")[- La Candelaria → Memoria: (print: $memoria)](else:)[- La Candelaria → Memoria: (no recorrida)]
+
+(if: $visitadas contains "San Cristóbal")[- San Cristóbal → Empatía: (print: $empatia)](else:)[- San Cristóbal → Empatía: (no recorrida)]
+
+(if: $visitadas contains "Kennedy")[- Kennedy → Solidaridad: (print: $solidaridad)](else:)[- Kennedy → Solidaridad: (no recorrida)]
+
+(if: $visitadas contains "Ciudad Bolívar")[- Ciudad Bolívar → Confianza: (print: $confianza)](else:)[- Ciudad Bolívar → Confianza: (no recorrida)]
+
+(if: $visitadas contains "Suba")[- Suba → Autenticidad: (print: $autenticidad)](else:)[- Suba → Autenticidad: (no recorrida)]
+
+(if: $visitadas contains "Puente Aranda")[- Puente Aranda → Conciencia: (print: $conciencia)](else:)[- Puente Aranda → Conciencia: (no recorrida)]
+
+(if: $visitadas contains "Usme")[- Usme → Legalidad: (print: $legalidad)](else:)[- Usme → Legalidad: (no recorrida)]
+
+(set: $rasgos to (a:))
+(if: $solidaridad > 0)[(set: $rasgos to $rasgos + (a: "solidaria"))](else-if: $solidaridad < 0)[(set: $rasgos to $rasgos + (a: "fría con los desconocidos"))]
+(if: $tolerancia > 0)[(set: $rasgos to $rasgos + (a: "abierta a lo distinto"))](else-if: $tolerancia < 0)[(set: $rasgos to $rasgos + (a: "incómoda con lo que no le es familiar"))]
+(if: $memoria > 0)[(set: $rasgos to $rasgos + (a: "memoriosa"))](else-if: $memoria < 0)[(set: $rasgos to $rasgos + (a: "olvidadiza"))]
+(if: $empatia > 0)[(set: $rasgos to $rasgos + (a: "empática"))](else-if: $empatia < 0)[(set: $rasgos to $rasgos + (a: "distante frente al dolor ajeno"))]
+(if: $confianza > 0)[(set: $rasgos to $rasgos + (a: "confiada"))](else-if: $confianza < 0)[(set: $rasgos to $rasgos + (a: "recelosa"))]
+(if: $autenticidad > 0)[(set: $rasgos to $rasgos + (a: "auténtica"))](else-if: $autenticidad < 0)[(set: $rasgos to $rasgos + (a: "acomodada a lo que otros quieren ver"))]
+(if: $conciencia > 0)[(set: $rasgos to $rasgos + (a: "consciente de lo invisible"))](else-if: $conciencia < 0)[(set: $rasgos to $rasgos + (a: "indiferente a lo que no la toca directamente"))]
+(if: $legalidad > 0)[(set: $rasgos to $rasgos + (a: "institucional"))](else-if: $legalidad < 0)[(set: $rasgos to $rasgos + (a: "rebuscada"))]
+
+(if: $rasgos's length > 0)[
+Se puede describir, hoy, como alguien (print: (joined: ", ", ...$rasgos)).
+](else:)[
+No terminó de inclinarse hacia ningún lado — todavía es, sobre todo,
+una posibilidad.
+]
+
+(set: $total to $solidaridad + $tolerancia + $memoria + $empatia + $confianza + $autenticidad + $conciencia + $legalidad)
+
+(if: $total >= 4)[
+Es, sobre todo, un reflejo amable de la ciudad: la parte de Bogotá que
+se detiene, que escucha, que confía un poco más de lo que le enseñaron.
+](else-if: $total <= -4)[
+Es, sobre todo, un reflejo áspero de la ciudad: la parte que aprendió a
+no detenerse, a no confiar, a mirar para otro lado cuando algo
+incomoda.
+](else:)[
+Es, sobre todo, un reflejo mixto — como la ciudad misma, que no es una
+sola cosa, sino muchas decisiones pequeñas superpuestas.
+]
+
+(if: $visitadas's length >= 8)[
+Y así, sin buscarlo, terminaste de construir algo con cada esquina en
+la que decidiste algo, de día o de noche. Bogotá no te enseñó una
+lección — te dejó ocho, y tú decidiste cuáles aprender.
+](else:)[
+Y así, sin terminar de recorrerla toda, la ciudad ya alcanzó a dejar
+algo en ti. Bogotá no necesita que la camines entera para dejar
+huella — a veces basta con lo que decidiste antes de irte.
+]
+
+*FIN*

@@ -1,0 +1,19 @@
+{
+  "name": "ciudades-expandidas-bogota",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Ciudades Expandidas - Bogota como cuerpo rizomatico",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server/server.js",
+    "generate-art": "node scripts/generate-art.js"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "pngjs": "^7.0.0"
+  }
+}

@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<title>Ciudades Expandidas — Bogotá</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.70.0/phaser.min.js"></script>
+<style>
+  html, body { margin:0; padding:0; background:#0e1024; overflow:hidden; height:100%; }
+  #game-root { width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
+  canvas { display:block; }
+</style>
+</head>
+<body>
+<div id="game-root"></div>
+<script>
+/* ============================================================
+   DATOS DE LA HISTORIA — generados desde el .twee (parse_twee.py)
+   ============================================================ */
+const STORY_NODES = [{"id": "Inicio", "location": null, "choices": [{"text": "Empezar a caminar", "target": "Selector"}], "text": "La ciudad todavía no tiene forma. Algo despierta en ti, sin nombre, sin\ncuerpo definido — apenas una sensación de estar por primera vez en\nalguna parte.\n\nNo sabes todavía que cada decisión que tomes en las próximas horas va a\nquedar marcada en algo. Solo sabes que tienes que caminar.", "type": "system", "init_stats": {"tolerancia": 0, "memoria": 0, "empatia": 0, "solidaridad": 0, "confianza": 0, "autenticidad": 0, "conciencia": 0, "legalidad": 0}, "note": "Al iniciar: todas las variables de rasgo en 0, $visitadas vacío, y $orden = las 8 localidades en orden aleatorio."}, {"id": "Selector", "location": null, "choices": [{"text": "Seguir caminando hacia otra localidad", "target": "Siguiente Localidad"}, {"text": "Terminar aquí el recorrido", "target": "Revelación final"}], "text": "La ciudad sigue abierta en todas direcciones. Puedes seguir caminando\nhacia otra localidad, o quedarte aquí con lo que ya decidiste hasta\nahora — la entidad se revela con lo que tenga en ese momento, esté\ncompleta o no.", "type": "hub"}, {"id": "Siguiente Localidad", "location": null, "choices": [], "type": "system", "logic": {"on_locations_remaining": {"action": "pick_next_from_shuffled_pool", "sets": ["$momento = random Día/Noche", "$siguienteNombre", "adds $siguienteNombre to $visitadas"], "goto": "<Localidad>: Entrada"}, "on_pool_empty": {"goto": "Revelación final"}}}, {"id": "Chapinero: Entrada", "location": "Chapinero", "choices": [{"text": "Detenerte a colaborar", "target": "Chapinero: Colaborar"}, {"text": "Seguir de largo, no es tu problema", "target": "Chapinero: Seguir"}], "text": {"day": "Es de día en Chapinero. Las vitrinas de los bares están cerradas y en\nsu lugar hay cafés, tiendas de ropa y gente caminando con afán hacia\nel trabajo. El barrio se ve distinto sin la fiesta encima.", "night": "Cae la noche en Chapinero. Luces de neón, música que se escapa de los\nbares, gente que se arregla frente a las vitrinas como si la calle\nfuera un espejo."}, "extra_raw": "En la puerta de un local, un grupo hace una colecta de ropa y plata\npara un chico al que su familia echó de la casa hace unos días."}, {"id": "Chapinero: Colaborar", "location": "Chapinero", "choices": [{"text": "Seguir caminando", "target": "Chapinero: Fiesta"}], "text": {"day": "Te detienes un momento, aunque vas de afán como todo el mundo a esta\nhora. Dejas algo de plata y sigues, sin mucho tiempo para quedarte a\nescuchar más.", "night": "Te detienes, en medio del ruido y las luces, preguntas qué necesita,\ndejas algo de plata. Alguien del grupo te cuenta la historia sin que\nse la pidas, como si la noche hiciera más fácil hablar de lo que\nduele."}, "effects": {"day": {"tolerancia": 1}, "night": {"tolerancia": 2}}, "extra_raw": "Algo en la entidad se afloja un poco, como un puño que se abre."}, {"id": "Chapinero: Seguir", "location": "Chapinero", "choices": [{"text": "Seguir caminando", "target": "Chapinero: Fiesta"}], "text": {"day": "Sigues de largo, apurado. Ni siquiera te detienes a mirar bien de qué\nse trata.", "night": "Aceleras el paso entre la música y las luces. Alcanzas a pensar \"eso\nno es asunto mío\" antes de perderte entre la gente que sale a\nrumbear."}, "effects": {"day": {"tolerancia": -1}, "night": {"tolerancia": -2}}, "extra_raw": "La calle sigue igual, como si nada hubiera pasado — porque para ti,\nnada pasó."}, {"id": "Chapinero: Fiesta", "location": "Chapinero", "choices": [{"text": "Decirle que no te parece gracioso", "target": "Chapinero: Defender"}, {"text": "Reírte también, para no incomodar", "target": "Chapinero: Reír"}], "mood_reaction": {"condition": "$tolerancia > 0", "text_true": "La entidad, todavía sin cara, siente el comentario como un ruido fuera\nde lugar — algo que no encaja con lo que empezó a sentir hace un\nmomento.", "text_false": "La entidad no reacciona todavía a comentarios así. Los registra, nada\nmás, como datos sin peso."}, "text": {"day": "Te encuentras con un conocido en un café. Mientras hablan, señala por\nla ventana a alguien que camina por la calle y suelta el mismo tipo\nde comentario burlón, ahora en voz baja, entre risas.", "night": "Entras a una fiesta con un conocido. En un momento, él señala a un\ngrupo que baila junto a la barra y suelta un comentario burlón sobre\ncómo se visten y se mueven."}}, {"id": "Chapinero: Defender", "location": "Chapinero", "choices": [{"text": "Continuar recorrido", "target": "Chapinero: Cierre"}], "text": {"day": "Le dices, con calma, que no le ves la gracia. Se encoge de hombros y\nsigue tomando su café.", "night": "Le dices que no le ves la gracia, con la música de fondo. Se queda un\npoco descolocado, cambia de tema. No es una gran victoria, pero\ntampoco te quedaste callado."}, "effects": {"day": {"tolerancia": 1}, "night": {"tolerancia": 2}}}, {"id": "Chapinero: Reír", "location": "Chapinero", "choices": [{"text": "Continuar recorrido", "target": "Chapinero: Cierre"}], "text": {"day": "Sueltas una risa incómoda y cambias de tema tú mismo, sin decir nada\nmás.", "night": "Te ríes también, fuerte, para no quedar mal frente al grupo. El\ncomentario se queda flotando un rato en el aire, y en ti también."}, "effects": {"day": {"tolerancia": -1}, "night": {"tolerancia": -2}}}, {"id": "Chapinero: Cierre", "location": "Chapinero", "choices": [{"text": "Continuar el recorrido", "target": "Selector"}], "reveal": {"stat": "tolerancia", "high_threshold": 2, "low_threshold": -2, "text_high": "La entidad sale de Chapinero con algo más suelto en los gestos, como\nalguien que dejó de necesitar que todo el mundo se pareciera a ella\npara sentirse cómoda.", "text_low": "La entidad sale de Chapinero más rígida, más pendiente de quién es\n\"normal\" y quién no. Aprendió a incomodarse con lo distinto.", "text_neutral": "La entidad sale de Chapinero sin definirse del todo — el barrio le dio\nseñales mezcladas, como casi siempre pasa con la gente."}, "memory_echo": {"condition": "$confianza < 0", "text": "*(Por un instante, algo le recuerda lo que sintió en Ciudad Bolívar,\naunque no sabría explicar por qué.)*"}}, {"id": "La Candelaria: Entrada", "location": "La Candelaria", "choices": [{"text": "Sentarte un rato a escucharlo", "target": "La Candelaria: Escuchar"}, {"text": "Seguir tu camino, tienes afán", "target": "La Candelaria: Seguir"}], "text": {"day": "Caminas de día por calles empedradas de La Candelaria, llenas de\nturistas con cámaras. Un señor mayor, sentado en la puerta de su\ncasa, intenta contarte una historia del barrio mientras la gente pasa\ntomándole fotos a la fachada, sin mirarlo a él.", "night": "Caminas de noche por calles empedradas de La Candelaria, casi vacías.\nUn señor mayor, sentado en la puerta de su casa con un tinto en la\nmano, empieza a contarte cómo era el barrio antes de que llegaran los\nhostales y los bares para turistas."}, "extra_raw": "Nadie más se ha detenido a escucharlo en toda la jornada."}, {"id": "La Candelaria: Escuchar", "location": "La Candelaria", "choices": [{"text": "Seguir caminando", "target": "La Candelaria: Casa"}], "text": {"day": "Te sientas un momento, entre el ruido de los turistas. Te cuenta un\npoco de la historia del barrio, aunque los dos saben que no es el\nmejor momento ni el mejor lugar para contarla completa.", "night": "Te sientas en el andén, en silencio, con la calle casi para ustedes\ndos. Te habla de un incendio, de una plaza que ya no existe, de\nvecinos que se fueron sin despedirse. La noche hace que la historia\npese más."}, "effects": {"day": {"memoria": 1}, "night": {"memoria": 2}}}, {"id": "La Candelaria: Seguir", "location": "La Candelaria", "choices": [{"text": "Seguir caminando", "target": "La Candelaria: Casa"}], "text": {"day": "Sigues de largo entre los turistas. Ya estás pensando en la siguiente\nfoto que vas a tomar.", "night": "Sigues de largo por la calle solitaria. El señor se queda hablándole\ncasi al aire, y el silencio de la noche hace que se note más lo solo\nque se quedó."}, "effects": {"day": {"memoria": -1}, "night": {"memoria": -2}}}, {"id": "La Candelaria: Casa", "location": "La Candelaria", "choices": [{"text": "Rescatarla o avisar que la conserven", "target": "La Candelaria: Avisar"}, {"text": "Seguir de largo, no es tu casa", "target": "La Candelaria: Ignorar"}], "mood_reaction": {"condition": "$memoria > 0", "text_true": "La entidad se detiene, como si algo dentro de ella insistiera en que\nesa placa significa algo, aunque no pueda leerla del todo.", "text_false": "La entidad no le presta atención a la placa. Una pared es una pared."}, "text": {"day": "Pasas frente a una casa colonial en obra: la están convirtiendo en\nhostal. Un obrero está a punto de arrancar una placa de bronce vieja,\ncasi ilegible, que nadie parece haber mirado en años.", "night": "Pasas frente a una casa colonial en obra, cerrada por la hora. Bajo la\nluz de un poste, ves apoyada contra la pared una placa de bronce\nvieja que alguien dejó ahí, como esperando a que se la lleve el\nreciclaje."}}, {"id": "La Candelaria: Avisar", "location": "La Candelaria", "choices": [{"text": "Continuar recorrido", "target": "La Candelaria: Cierre"}], "text": {"day": "Le pides al obrero que espere y avisas a alguien encargado. Se encoge\nde hombros pero espera. Al menos por hoy, esa memoria no desaparece\nsin que nadie se dé cuenta.", "night": "Casi sin pensarlo, guardas la placa contigo, decidido a averiguar de\nqué casa era y a quién avisarle. En la calle vacía, ese pequeño gesto\nse siente más grande de lo que debería."}, "effects": {"day": {"memoria": 1}, "night": {"memoria": 2}}}, {"id": "La Candelaria: Ignorar", "location": "La Candelaria", "choices": [{"text": "Continuar recorrido", "target": "La Candelaria: Cierre"}], "text": {"day": "Sigues caminando. Detrás de ti, se escucha el golpe seco de la placa\ncayendo al piso, y luego nada — la obra continúa como si no hubiera\npasado nada.", "night": "Sigues caminando por la calle sola. Detrás de ti, la placa se queda\napoyada en la pared, y la oscuridad se encarga de que nadie más la\nnote tampoco."}, "effects": {"day": {"memoria": -1}, "night": {"memoria": -2}}}, {"id": "La Candelaria: Cierre", "location": "La Candelaria", "choices": [{"text": "Continuar el recorrido", "target": "Selector"}], "reveal": {"stat": "memoria", "high_threshold": 2, "low_threshold": -2, "text_high": "La entidad sale de La Candelaria cargando algo parecido a la memoria\nde otros — como si hubiera aprendido que las cosas viejas también\npiden que alguien las mire antes de irse.", "text_low": "La entidad sale de La Candelaria más liviana pero también más vacía,\nsin ningún peso del pasado encima.", "text_neutral": "La entidad sale de La Candelaria sin terminar de decidir qué tan\nimportante es lo que ya pasó."}}, {"id": "San Cristóbal: Entrada", "location": "San Cristóbal", "choices": [{"text": "Quedarte a escucharla", "target": "San Cristóbal: Escuchar"}, {"text": "Decirle que vas de afán", "target": "San Cristóbal: Afán"}], "text": {"day": "Subes de día por las laderas de San Cristóbal. El camino es empinado\ny las casas parecen apiladas una sobre otra. Una chica de tu edad, en\nla puerta de su casa, te pregunta si tienes tiempo para escucharla\nmientras cuelga la ropa — hoy se cumplen tres años desde que su\nfamilia tuvo que salir de su pueblo.", "night": "Subes de noche por las laderas de San Cristóbal, con muy poca luz en\nlas calles. Una chica de tu edad, sentada en un andén casi a oscuras,\nte pregunta si tienes tiempo — necesita contarle a alguien que hoy se\ncumplen tres años desde que su familia tuvo que salir de su pueblo."}}, {"id": "San Cristóbal: Escuchar", "location": "San Cristóbal", "choices": [{"text": "Seguir subiendo", "target": "San Cristóbal: Minga"}], "text": {"day": "Te sientas con ella un rato, mientras cuelga la ropa. Te cuenta del\ndesplazamiento, aunque entre interrupciones de vecinos que pasan y\nsaludan.", "night": "Te sientas con ella, en la oscuridad. Te cuenta del desplazamiento, de\nla casa que dejaron armada de golpe, de lo raro que es que el barrio\nque la recibió ahora también se sienta amenazado por un derrumbe. La\noscuridad hace que las palabras pesen distinto."}, "effects": {"day": {"empatia": 1}, "night": {"empatia": 2}}}, {"id": "San Cristóbal: Afán", "location": "San Cristóbal", "choices": [{"text": "Seguir subiendo", "target": "San Cristóbal: Minga"}], "text": {"day": "Le dices que vas de afán y sigues subiendo. Ella sigue colgando ropa,\nsin darle mucha importancia.", "night": "Le dices que vas tarde y sigues subiendo, en la oscuridad. Ella\nasiente, apenas visible, como quien ya está acostumbrada a que nadie\ntenga tiempo para su historia."}, "effects": {"day": {"empatia": -1}, "night": {"empatia": -2}}}, {"id": "San Cristóbal: Minga", "location": "San Cristóbal", "choices": [{"text": "Sumarte a la minga", "target": "San Cristóbal: Ayudar"}, {"text": "Seguir tu camino", "target": "San Cristóbal: Pasar"}], "mood_reaction": {"condition": "$empatia > 0", "text_true": "La entidad reconoce algo en esa urgencia — el mismo peso que sintió\nhace un momento en la historia de la chica del andén.", "text_false": "La entidad ve la escena de lejos, como quien mira un problema que no\nes suyo."}, "text": {"day": "Más arriba, un grupo de vecinos está reforzando con costales y\nvarillas un muro que amenaza con ceder en la próxima lluvia fuerte.\nAlguien te grita, medio en broma, que hacen falta manos.", "night": "Más arriba, a la luz de unas linternas, un grupo de vecinos está\nreforzando de urgencia un muro que amenaza con ceder si llueve esta\nmisma noche. Alguien te grita que hacen falta manos, antes de que sea\ntarde."}}, {"id": "San Cristóbal: Ayudar", "location": "San Cristóbal", "choices": [{"text": "Continuar recorrido", "target": "San Cristóbal: Cierre"}], "text": {"day": "Te quedas una hora cargando costales, con calma, mientras el sol\ntodavía pega fuerte.", "night": "Te quedas horas cargando costales a oscuras, con la lluvia empezando a\ncaer. Nadie te lo agradece de forma especial — aquí ayudarse de noche,\ncon urgencia, es lo normal."}, "effects": {"day": {"empatia": 1}, "night": {"empatia": 2}}}, {"id": "San Cristóbal: Pasar", "location": "San Cristóbal", "choices": [{"text": "Continuar recorrido", "target": "San Cristóbal: Cierre"}], "text": {"day": "Sigues de largo. El muro sigue ahí, sostenido por los que sí se\nquedaron.", "night": "Sigues de largo en la oscuridad. El muro sigue ahí, sostenido apenas\npor las manos de los que sí se quedaron a pesar de la hora."}, "effects": {"day": {"empatia": -1}, "night": {"empatia": -2}}}, {"id": "San Cristóbal: Cierre", "location": "San Cristóbal", "choices": [{"text": "Continuar el recorrido", "target": "Selector"}], "reveal": {"stat": "empatia", "high_threshold": 2, "low_threshold": -2, "text_high": "La entidad sale de San Cristóbal con algo más blando en la mirada,\ncomo si hubiera aprendido a sentir el dolor ajeno sin necesitar\nvivirlo primero.", "text_low": "La entidad sale de San Cristóbal más distante, más acostumbrada a ver\nel sufrimiento de otros sin que le llegue del todo.", "text_neutral": "La entidad sale de San Cristóbal sin terminar de decidir cuánto le\nduele lo que le duele a otros."}}, {"id": "Kennedy: Entrada", "location": "Kennedy", "choices": [{"text": "Ayudarle a cargar las bolsas", "target": "Kennedy: Ayudar"}, {"text": "Seguir de largo, no tienes tiempo", "target": "Kennedy: Seguir"}], "text": {"day": "Bajas del bus en Kennedy en pleno día. El ruido del mercado te\nenvuelve: pregones, pitos, el olor a fritanga mezclado con gasolina.\nVas tarde, pero una señora mayor va cargando dos bolsas enormes y se\nle resbala una.", "night": "Bajas del bus en Kennedy ya de noche. El mercado está cerrando, quedan\npocos puestos con luz propia y el ruido del día se apagó casi por\ncompleto. Una señora mayor, apurada por llegar a su casa, va cargando\ndos bolsas enormes y se le resbala una."}}, {"id": "Kennedy: Ayudar", "location": "Kennedy", "choices": [{"text": "Seguir caminando", "target": "Kennedy: Puesto de arepas"}], "text": {"day": "Le cargas las bolsas hasta la esquina, entre el bullicio del mercado.\nElla te agradece con una fruta, casi como un reflejo, sin pensarlo.", "night": "Le cargas las bolsas hasta su casa, ya casi sin nadie más en la calle.\nElla te agradece con una fruta que saca de una de las bolsas,\nsorprendida de que alguien se detenga a esta hora."}, "effects": {"day": {"solidaridad": 1}, "night": {"solidaridad": 2}}, "extra_raw": "Sientes, sin saber bien por qué, que algo dentro de ti se acomoda distinto."}, {"id": "Kennedy: Seguir", "location": "Kennedy", "choices": [{"text": "Seguir caminando", "target": "Kennedy: Puesto de arepas"}], "text": {"day": "Sigues de largo entre el bullicio. La señora se las arregla sola,\nresoplando, mientras te alejas. Nadie más se detiene tampoco.", "night": "Sigues de largo por la calle casi vacía. La señora se las arregla\nsola, resoplando, sin nadie más cerca que pueda ayudarla."}, "effects": {"day": {"solidaridad": -1}, "night": {"solidaridad": -2}}, "extra_raw": "Vas más rápido, pero algo en ti queda un poco más frío."}, {"id": "Kennedy: Puesto de arepas", "location": "Kennedy", "choices": [{"text": "Pagar lo que pide sin problema", "target": "Kennedy: Pagar completo"}, {"text": "Regatear el precio", "target": "Kennedy: Regatear"}], "mood_reaction": {"condition": "$solidaridad > 0", "text_true": "La entidad, todavía sin forma clara, murmura algo parecido a: *\"la señora\ntampoco tenía de sobra, y aun así te dio algo...\"*", "text_false": "La entidad no dice nada. Solo observa, fría, calculando."}, "text": {"day": "Un vendedor de arepas te llama desde su carreta. El precio que te dice\nes más alto de lo normal — parece que ya calculó que no eres de por\nahí.", "night": "Un vendedor de arepas, de los pocos que quedan abiertos, te llama\ndesde su carreta antes de recoger por hoy. El precio que te dice es\nmás alto de lo normal — parece que ya calculó que no eres de por ahí,\ny que a esta hora tienes pocas opciones."}}, {"id": "Kennedy: Pagar completo", "location": "Kennedy", "choices": [{"text": "Continuar recorrido", "target": "Kennedy: Cierre"}], "text": {"day": "Pagas sin quejarte. El vendedor te mira un segundo de más, como si no\nesperara eso, y te da una arepa extra \"de una\".", "night": "Pagas sin quejarte, pensando en que él también quiere irse a dormir.\nTe mira un segundo de más, y te da una arepa extra \"de una\", con algo\nparecido al alivio."}, "effects": {"day": {"solidaridad": 1}, "night": {"solidaridad": 2}}}, {"id": "Kennedy: Regatear", "location": "Kennedy", "choices": [{"text": "Continuar recorrido", "target": "Kennedy: Cierre"}], "text": {"day": "Regateas hasta bajar el precio. Ganas dos mil pesos. El vendedor no\ndice nada, pero guarda la moneda distinto.", "night": "Regateas hasta bajar el precio, aprovechando que ya quiere cerrar.\nGanas dos mil pesos. Él guarda la moneda sin decir nada, con la cara\nde alguien que ya no espera nada de nadie, y menos a esta hora."}, "effects": {"day": {"solidaridad": -1}, "night": {"solidaridad": -2}}}, {"id": "Kennedy: Cierre", "location": "Kennedy", "choices": [{"text": "Continuar el recorrido", "target": "Selector"}], "reveal": {"stat": "solidaridad", "high_threshold": 2, "low_threshold": -2, "text_high": "La entidad, al salir de Kennedy, tiene un poco más de peso — como si\ncargar algo por otro le hubiera dado forma. Algo en su postura empieza a\nparecerse a alguien que se detiene cuando otro necesita ayuda.", "text_low": "La entidad sale de Kennedy más angulosa, más rápida en sus movimientos.\nEmpieza a parecerse a alguien que aprendió a no detenerse por nadie.", "text_neutral": "La entidad sale de Kennedy sin definirse todavía del todo — Kennedy le dio\nseñales mixtas, como casi siempre pasa con la gente."}, "memory_echo": {"condition": "$confianza < 0", "text": "*(La entidad recuerda, por un instante, lo que pasó en Ciudad Bolívar. No\nlo dice en voz alta, pero se le nota.)*"}}, {"id": "Ciudad Bolívar: Entrada", "location": "Ciudad Bolívar", "choices": [{"text": "Confiar e ir con ellos", "target": "Ciudad Bolívar: Confiar"}, {"text": "Decir que no, mejor te quedas aquí", "target": "Ciudad Bolívar: Rechazar"}], "text": {"day": "En Ciudad Bolívar, de día, un grupo de jóvenes pinta un mural enorme\nen la fachada de un colegio. Uno de ellos te reconoce como forastero y\nte invita a subir con ellos hasta un mirador que, según dice, tiene\n\"la mejor vista de todo Bogotá\".", "night": "En Ciudad Bolívar, de noche, un grupo de jóvenes termina de pintar un\nmural enorme a la luz de un poste. Uno de ellos te reconoce como\nforastero y te invita a subir con ellos hasta un mirador — hay que\natravesar un par de calles que, de noche, mucha gente evita todavía\nmás."}}, {"id": "Ciudad Bolívar: Confiar", "location": "Ciudad Bolívar", "choices": [{"text": "Seguir con ellos", "target": "Ciudad Bolívar: Advertencia"}], "text": {"day": "Subes con ellos de día. El camino es empinado y las calles son\nestrechas, pero nadie te hace sentir fuera de lugar. Desde arriba, la\nciudad se ve enorme.", "night": "Subes con ellos de noche. El camino es empinado y casi no hay luz,\npero nadie te hace sentir fuera de lugar. Desde arriba, las luces de\nla ciudad se ven enormes, y por un momento el miedo que traías se\nsiente exagerado."}, "effects": {"day": {"confianza": 1}, "night": {"confianza": 2}}}, {"id": "Ciudad Bolívar: Rechazar", "location": "Ciudad Bolívar", "choices": [{"text": "Seguir tu camino", "target": "Ciudad Bolívar: Advertencia"}], "text": {"day": "Les dices que no, con una excusa cualquiera. Ellos no insisten y\nsiguen su camino sin ti.", "night": "Les dices que no, de noche te da más miedo todavía. Ellos no\ninsisten — ya están acostumbrados a que la gente de afuera desconfíe\nmás cuando oscurece. Siguen su camino sin ti."}, "effects": {"day": {"confianza": -1}, "night": {"confianza": -2}}}, {"id": "Ciudad Bolívar: Advertencia", "location": "Ciudad Bolívar", "choices": [{"text": "Seguir confiando en el grupo", "target": "Ciudad Bolívar: Seguir confiando"}, {"text": "Alejarte, por si acaso", "target": "Ciudad Bolívar: Alejarte"}], "mood_reaction": {"condition": "$confianza > 0", "text_true": "La entidad ya sintió otra cosa hace un momento, y esa advertencia le\nsuena más a costumbre que a verdad.", "text_false": "La entidad guarda la advertencia como un dato más que confirma lo que\nya sospechaba."}, "text": {"day": "Una señora del barrio te ve cerca del grupo y te advierte en voz baja:\n\"tenga cuidado con esos muchachos, por acá esos son de cuidado\".", "night": "Una señora del barrio te ve cerca del grupo y te advierte en voz baja:\n\"tenga cuidado con esos muchachos, por acá esos son de cuidado, y más de noche\"."}}, {"id": "Ciudad Bolívar: Seguir confiando", "location": "Ciudad Bolívar", "choices": [{"text": "Continuar recorrido", "target": "Ciudad Bolívar: Cierre"}], "text": {"day": "Te quedas con ellos hasta terminar el mural. Al final, alguien escribe\ntu nombre en una esquina pequeña, como parte del grupo por un rato.", "night": "Te quedas con ellos hasta terminar el mural, ya entrada la noche.\nAlguien escribe tu nombre en una esquina pequeña, y por un momento\nsientes que la oscuridad del barrio no era lo que te habían contado."}, "effects": {"day": {"confianza": 1}, "night": {"confianza": 2}}}, {"id": "Ciudad Bolívar: Alejarte", "location": "Ciudad Bolívar", "choices": [{"text": "Continuar recorrido", "target": "Ciudad Bolívar: Cierre"}], "text": {"day": "Te alejas, agradeciendo en silencio la advertencia. El mural se\ntermina sin ti.", "night": "Te alejas rápido, de noche, agradeciendo en silencio la advertencia.\nEl mural se termina sin ti, en la oscuridad, y nunca sabrás si tenías\nrazón en desconfiar."}, "effects": {"day": {"confianza": -1}, "night": {"confianza": -2}}}, {"id": "Ciudad Bolívar: Cierre", "location": "Ciudad Bolívar", "choices": [{"text": "Continuar el recorrido", "target": "Selector"}], "reveal": {"stat": "confianza", "high_threshold": 2, "low_threshold": -2, "text_high": "La entidad sale de Ciudad Bolívar con algo más abierto en el pecho,\ncomo si hubiera aprendido que el miedo al otro casi nunca viene del\notro, sino de lo que le contaron sobre él.", "text_low": "La entidad sale de Ciudad Bolívar más cerrada, más pronta a sospechar\nde cualquiera que no se le parezca o que venga de donde le advirtieron\nque no fuera.", "text_neutral": "La entidad sale de Ciudad Bolívar sin terminar de decidir en quién\nconfiar."}, "memory_echo": {"condition": "$solidaridad > 0", "text": "*(Algo le recuerda, sin palabras, lo que sintió al ayudar a cargar unas\nbolsas en Kennedy.)*"}}, {"id": "Suba: Entrada", "location": "Suba", "choices": [{"text": "Contar algo real, aunque incómodo", "target": "Suba: Contar verdad"}, {"text": "Inventar una historia más interesante", "target": "Suba: Inventar"}], "text": {"day": "En Suba, en pleno día, conoces a un chico que graba contenido para\nredes desde la terraza de su casa. Está haciendo un video sobre \"la\nBogotá real\" y te pide que cuentes algo tuyo, algo verdadero, frente a\nla cámara.", "night": "En Suba, de noche, conoces a un chico que graba contenido para redes\ndesde la terraza de su casa, con la ciudad iluminada de fondo. Está\nhaciendo un video sobre \"la Bogotá real\" y te pide que cuentes algo\ntuyo, algo verdadero, frente a la cámara — dice que de noche la gente\nse suelta más."}}, {"id": "Suba: Contar verdad", "location": "Suba", "choices": [{"text": "Seguir viendo el proceso", "target": "Suba: Comentarios"}], "text": {"day": "Cuentas algo sencillo pero cierto, aunque te cuesta un poco más\nsoltarlo en pleno día, con la luz sobre la cara.", "night": "De noche, con la ciudad de fondo, cuentas algo que normalmente no\ndirías: una pelea con tu familia, un miedo tonto. Se siente raro,\npero también más fácil que si fuera de día."}, "effects": {"day": {"autenticidad": 1}, "night": {"autenticidad": 2}}}, {"id": "Suba: Inventar", "location": "Suba", "choices": [{"text": "Seguir viendo el proceso", "target": "Suba: Comentarios"}], "text": {"day": "Inventas algo más llamativo, pensando en que así el video le va a\ngustar más a la gente.", "night": "De noche inventas algo todavía más exagerado, pensando en que así el\nvideo se va a ver mejor iluminado y más dramático. Ni tú mismo te\ncrees la historia."}, "effects": {"day": {"autenticidad": -1}, "night": {"autenticidad": -2}}}, {"id": "Suba: Comentarios", "location": "Suba", "choices": [{"text": "Animarlo a seguir siendo honesto", "target": "Suba: Animar"}, {"text": "Decirle que mejor haga lo popular", "target": "Suba: Aconsejar cinismo"}], "mood_reaction": {"condition": "$autenticidad > 0", "text_true": "La entidad siente que lo honesto de hace un rato vale más que cualquier\ncomentario de un desconocido.", "text_false": "La entidad no entiende bien por qué molestarse en ser sincero si de\ntodas formas la gente va a opinar lo mismo."}, "text": "El video se publica y, en minutos, empiezan a llegar comentarios crueles\nde gente que no conoce a nadie de los que salen ahí. El chico te\npregunta, algo desanimado, si debería seguir grabando cosas así o mejor\nhacer lo que sí funciona con el algoritmo."}, {"id": "Suba: Animar", "location": "Suba", "choices": [{"text": "Continuar recorrido", "target": "Suba: Cierre"}], "text": {"day": "Le dices que lo real siempre incomoda a alguien, y que está bien. Se\nqueda pensando, y al final decide dejar el video tal como está.", "night": "Le dices, ya de noche, que lo real siempre incomoda a alguien, y que\nestá bien. Se queda pensando un buen rato, con la ciudad prendida de\nfondo, y al final decide dejar el video tal como está."}, "effects": {"day": {"autenticidad": 1}, "night": {"autenticidad": 2}}}, {"id": "Suba: Aconsejar cinismo", "location": "Suba", "choices": [{"text": "Continuar recorrido", "target": "Suba: Cierre"}], "text": {"day": "Le dices que mejor haga lo que ya sabe que funciona. Borra el video\nesa misma noche y empieza a grabar otro.", "night": "Le dices que mejor haga lo que funciona. Esa misma noche borra el\nvideo y graba otro, más pensado para gustar que para ser cierto."}, "effects": {"day": {"autenticidad": -1}, "night": {"autenticidad": -2}}}, {"id": "Suba: Cierre", "location": "Suba", "choices": [{"text": "Continuar el recorrido", "target": "Selector"}], "reveal": {"stat": "autenticidad", "high_threshold": 2, "low_threshold": -2, "text_high": "La entidad sale de Suba con algo más propio en la voz, como si hubiera\nentendido que mostrarse de verdad, aunque incomode, vale más que\nencajar.", "text_low": "La entidad sale de Suba con una sonrisa más ensayada, más pendiente de\nqué es lo que el resto quiere ver que de lo que ella misma siente.", "text_neutral": "La entidad sale de Suba sin decidir todavía si prefiere ser real o\nser aceptada."}}, {"id": "Puente Aranda: Entrada", "location": "Puente Aranda", "choices": [{"text": "Preguntarle más, interesarte de verdad", "target": "Puente Aranda: Preguntar"}, {"text": "Asentir por cortesía y seguir", "target": "Puente Aranda: Asentir"}], "text": {"day": "Caminas de día entre bodegas y fábricas de Puente Aranda. El aire\nhuele a químicos y hay un ruido constante de maquinaria. Un obrero,\nen su descanso, te cuenta de corrido que lleva años respirando eso\nmismo todos los días.", "night": "Caminas de noche entre bodegas y fábricas de Puente Aranda. Casi todas\nestán cerradas, pero el olor a químicos sigue pegado al aire. Un\nobrero del turno nocturno, en su descanso, te cuenta de corrido que\nlleva años respirando eso mismo todas las noches, y que ya ni lo\nnota."}}, {"id": "Puente Aranda: Preguntar", "location": "Puente Aranda", "choices": [{"text": "Seguir caminando", "target": "Puente Aranda: Derrame"}], "text": {"day": "Le haces preguntas: si alguna vez han medido el aire, si hay algo que\nse pueda hacer. Él se sorprende de que alguien pregunte.", "night": "Le haces preguntas, ahí en la oscuridad, casi sin nadie más alrededor\nque pueda escucharlo. Él se sorprende de que alguien pregunte a estas\nhoras, cuando ya nadie más pasa por ahí."}, "effects": {"day": {"conciencia": 1}, "night": {"conciencia": 2}}}, {"id": "Puente Aranda: Asentir", "location": "Puente Aranda", "choices": [{"text": "Seguir caminando", "target": "Puente Aranda: Derrame"}], "text": {"day": "Asientes, dices \"qué complicado\" y sigues caminando.", "night": "Asientes rápido, con ganas de seguir tu camino antes de que oscurezca\nmás. El obrero se queda solo, terminando su cigarrillo en la\noscuridad."}, "effects": {"day": {"conciencia": -1}, "night": {"conciencia": -2}}}, {"id": "Puente Aranda: Derrame", "location": "Puente Aranda", "choices": [{"text": "Tomar una foto y anotar la dirección", "target": "Puente Aranda: Registrar"}, {"text": "Seguir caminando, no es tu problema", "target": "Puente Aranda: Ignorar"}], "mood_reaction": {"condition": "$conciencia > 0", "text_true": "La entidad ya no puede ver eso como algo normal — algo en ella insiste\nen que alguien debería saberlo.", "text_false": "La entidad ve el charco como parte del paisaje, sin darle más vueltas."}, "text": {"day": "Un poco más adelante ves un charco de líquido oscuro filtrándose desde\nuna bodega hacia una alcantarilla, justo frente a un colegio que está\nsaliendo a la hora del descanso.", "night": "Un poco más adelante, a la luz de un poste, ves un charco de líquido\noscuro filtrándose desde una bodega hacia una alcantarilla. De noche,\nsin nadie cerca, es más fácil que nadie más lo note nunca."}}, {"id": "Puente Aranda: Registrar", "location": "Puente Aranda", "choices": [{"text": "Continuar recorrido", "target": "Puente Aranda: Cierre"}], "text": {"day": "Tomas la foto, anotas la dirección aproximada, pensando en mencionarlo\ndespués a alguien que pueda hacer algo.", "night": "Tomas la foto con flash, en la oscuridad, y anotas la dirección\naproximada. Sabes que, de noche, si tú no lo registras, probablemente\nnadie más lo va a hacer."}, "effects": {"day": {"conciencia": 1}, "night": {"conciencia": 2}}}, {"id": "Puente Aranda: Ignorar", "location": "Puente Aranda", "choices": [{"text": "Continuar recorrido", "target": "Puente Aranda: Cierre"}], "text": {"day": "Sigues caminando. El charco sigue ahí, invisible para todos los que\npasan igual que tú.", "night": "Sigues caminando en la oscuridad. El charco sigue ahí, todavía más\ninvisible de noche que de día."}, "effects": {"day": {"conciencia": -1}, "night": {"conciencia": -2}}}, {"id": "Puente Aranda: Cierre", "location": "Puente Aranda", "choices": [{"text": "Continuar el recorrido", "target": "Selector"}], "reveal": {"stat": "conciencia", "high_threshold": 2, "low_threshold": -2, "text_high": "La entidad sale de Puente Aranda viendo cosas que antes no veía — como\nsi hubiera aprendido que lo invisible también le pasa factura a\nalguien.", "text_low": "La entidad sale de Puente Aranda todavía más acostumbrada a no mirar\nlo que incomoda.", "text_neutral": "La entidad sale de Puente Aranda sin decidir todavía qué tanto le toca\na ella lo que no ve directamente."}}, {"id": "Usme: Entrada", "location": "Usme", "choices": [{"text": "Sugerirles que sigan el conducto legal", "target": "Usme: Vía legal"}, {"text": "Sugerirles que resuelvan esto a su manera", "target": "Usme: Viveza"}], "text": {"day": "Llegas de día al borde rural de Usme, donde la ciudad empieza a\ndeshacerse en potreros y quebradas. Una familia te muestra unos\npapeles: llevan meses en un pleito con una empresa por el uso del\nagua de un nacimiento cercano al que dicen tener derecho.", "night": "Llegas de noche al borde rural de Usme, donde la ciudad se deshace en\npotreros y quebradas casi a oscuras. A la luz de una vela, una familia\nte muestra unos papeles: llevan meses en un pleito con una empresa\npor el uso del agua de un nacimiento cercano al que dicen tener\nderecho."}}, {"id": "Usme: Vía legal", "location": "Usme", "choices": [{"text": "Seguir camino", "target": "Usme: Asamblea"}], "text": {"day": "Les dices que junten pruebas, que busquen una autoridad ambiental, que\ninsistan aunque sea lento.", "night": "Les dices, a la luz de la vela, que junten pruebas, que busquen una\nautoridad ambiental, que insistan aunque sea lento. La conversación se\nalarga hasta tarde, como si la noche diera más espacio para pensarlo\nen serio."}, "effects": {"day": {"legalidad": 1}, "night": {"legalidad": 2}}}, {"id": "Usme: Viveza", "location": "Usme", "choices": [{"text": "Seguir camino", "target": "Usme: Asamblea"}], "text": {"day": "Les dices que mejor resuelvan el asunto por su cuenta, que el papeleo\nno lleva a ningún lado.", "night": "Les dices, ya cansado por el viaje y la hora, que mejor resuelvan el\nasunto por su cuenta, que el papeleo no lleva a ningún lado. Se\nquedan callados en la penumbra."}, "effects": {"day": {"legalidad": -1}, "night": {"legalidad": -2}}}, {"id": "Usme: Asamblea", "location": "Usme", "choices": [{"text": "Hablar en la asamblea", "target": "Usme: Hablar"}, {"text": "Usar el atajo", "target": "Usme: Atajo"}], "mood_reaction": {"condition": "$legalidad > 0", "text_true": "La entidad prefiere, sin dudarlo mucho, la palabra dicha en público\nsobre el atajo susurrado en privado.", "text_false": "La entidad no ve gran diferencia entre un camino y otro, si ambos\nllegan al mismo lugar."}, "text": {"day": "Esa tarde hay una reunión comunal sobre el mismo tema. Alguien te cede\nla palabra para que cuentes lo que viste. Al mismo tiempo, un vecino\nte ofrece, en voz baja, \"una entrada más rápida\" si conoces a alguien\nen la alcaldía.", "night": "Esa misma noche hay una reunión comunal sobre el mismo tema, alumbrada\napenas con un par de bombillos. Alguien te cede la palabra. Al mismo\ntiempo, un vecino te ofrece, casi susurrando en la oscuridad, \"una\nentrada más rápida\" si conoces a alguien en la alcaldía."}}, {"id": "Usme: Hablar", "location": "Usme", "choices": [{"text": "Continuar recorrido", "target": "Usme: Cierre"}], "text": {"day": "Hablas frente a todos, con nervios, contando lo que viste en el\nnacimiento de agua.", "night": "Hablas frente a todos, ya de noche, con nervios, contando lo que viste\nen el nacimiento de agua. La asamblea se extiende más de lo previsto,\npero queda dicho, y queda escuchado por más de uno."}, "effects": {"day": {"legalidad": 1}, "night": {"legalidad": 2}}}, {"id": "Usme: Atajo", "location": "Usme", "choices": [{"text": "Continuar recorrido", "target": "Usme: Cierre"}], "text": {"day": "Usas el contacto, agilizas el trámite para la familia. Funciona más\nrápido que cualquier asamblea.", "night": "Usas el contacto esa misma noche para agilizar el trámite. Funciona\nrápido, en la oscuridad y en silencio — pero deja igual de claro que,\npara otros sin ese contacto, el camino sigue siendo el mismo de\nsiempre."}, "effects": {"day": {"legalidad": -1}, "night": {"legalidad": -2}}}, {"id": "Usme: Cierre", "location": "Usme", "choices": [{"text": "Continuar el recorrido", "target": "Selector"}], "reveal": {"stat": "legalidad", "high_threshold": 2, "low_threshold": -2, "text_high": "La entidad sale de Usme con algo más firme en la postura, como si\nhubiera aprendido a confiar en lo que se hace bien, aunque sea más\nlento.", "text_low": "La entidad sale de Usme más ágil pero más resbaladiza, aprendiendo que\ncasi todo problema tiene un atajo si uno sabe a quién buscar.", "text_neutral": "La entidad sale de Usme sin decidir todavía si el sistema sirve o solo\nestorba."}}, {"id": "Revelación final", "location": null, "choices": [], "reveal": {"stat": "total", "high_threshold": 4, "low_threshold": -4, "text_high": "Es, sobre todo, un reflejo amable de la ciudad: la parte de Bogotá que\nse detiene, que escucha, que confía un poco más de lo que le enseñaron.", "text_low": "Es, sobre todo, un reflejo áspero de la ciudad: la parte que aprendió a\nno detenerse, a no confiar, a mirar para otro lado cuando algo\nincomoda.", "text_neutral": "Es, sobre todo, un reflejo mixto — como la ciudad misma, que no es una\nsola cosa, sino muchas decisiones pequeñas superpuestas."}, "mood_reaction": {"condition": "$solidaridad > 0", "text_true": "](else-if: $solidaridad < 0)[]\n(if: $tolerancia > 0)[](else-if: $tolerancia < 0)[]\n(if: $memoria > 0)[](else-if: $memoria < 0)[]\n(if: $empatia > 0)[](else-if: $empatia < 0)[]\n(if: $confianza > 0)[](else-if: $confianza < 0)[]\n(if: $autenticidad > 0)[](else-if: $autenticidad < 0)[]\n(if: $conciencia > 0)[](else-if: $conciencia < 0)[]\n(if: $legalidad > 0)[](else-if: $legalidad < 0)[]\n\n(if: $rasgos's length > 0)[\nSe puede describir, hoy, como alguien (print: (joined: \", \", ...$rasgos)).", "text_false": "No terminó de inclinarse hacia ningún lado — todavía es, sobre todo,\nuna posibilidad."}, "text": "La entidad se detiene. (if: $visitadas's length >= 8)[Ya no queda\nninguna calle nueva por caminar — las ocho localidades quedaron atrás,\ncada una dejando algo debajo de la piel que todavía no tenía, unas\nveces bajo el sol y otras bajo la noche.](else:)[No recorriste las\nocho localidades — decidiste detenerte antes, con (print:\n$visitadas's length) de 8 ya caminadas. La entidad se revela tal como\nquedó, incompleta, con lo que alcanzaste a decidir.]\n\n**Rasgos de la entidad, localidad por localidad:**\n\n(if: $visitadas contains \"Chapinero\")[- Chapinero → Tolerancia: (print: $tolerancia)](else:)[- Chapinero → Tolerancia: (no recorrida)]\n\n(if: $visitadas contains \"La Candelaria\")[- La Candelaria → Memoria: (print: $memoria)](else:)[- La Candelaria → Memoria: (no recorrida)]\n\n(if: $visitadas contains \"San Cristóbal\")[- San Cristóbal → Empatía: (print: $empatia)](else:)[- San Cristóbal → Empatía: (no recorrida)]\n\n(if: $visitadas contains \"Kennedy\")[- Kennedy → Solidaridad: (print: $solidaridad)](else:)[- Kennedy → Solidaridad: (no recorrida)]\n\n(if: $visitadas contains \"Ciudad Bolívar\")[- Ciudad Bolívar → Confianza: (print: $confianza)](else:)[- Ciudad Bolívar → Confianza: (no recorrida)]\n\n(if: $visitadas contains \"Suba\")[- Suba → Autenticidad: (print: $autenticidad)](else:)[- Suba → Autenticidad: (no recorrida)]\n\n(if: $visitadas contains \"Puente Aranda\")[- Puente Aranda → Conciencia: (print: $conciencia)](else:)[- Puente Aranda → Conciencia: (no recorrida)]\n\n(if: $visitadas contains \"Usme\")[- Usme → Legalidad: (print: $legalidad)](else:)[- Usme → Legalidad: (no recorrida)]\n\n(if: $visitadas's length >= 8)[\nY así, sin buscarlo, terminaste de construir algo con cada esquina en\nla que decidiste algo, de día o de noche. Bogotá no te enseñó una\nlección — te dejó ocho, y tú decidiste cuáles aprender.\n](else:)[\nY así, sin terminar de recorrerla toda, la ciudad ya alcanzó a dejar\nalgo en ti. Bogotá no necesita que la camines entera para dejar\nhuella — a veces basta con lo que decidiste antes de irte.\n]\n\n*FIN*", "type": "ending", "stat_by_location": {"Chapinero": "tolerancia", "La Candelaria": "memoria", "San Cristóbal": "empatia", "Kennedy": "solidaridad", "Ciudad Bolívar": "confianza", "Suba": "autenticidad", "Puente Aranda": "conciencia", "Usme": "legalidad"}, "trait_rules": "para cada stat: >0 -> rasgo positivo, <0 -> rasgo negativo, ==0 -> sin rasgo (ver PDF/twee para el texto exacto de cada rasgo)", "total_rule": {"total = sum(all 8 stats)": null, ">=4": "reflejo amable de la ciudad", "<=-4": "reflejo áspero de la ciudad", "else": "reflejo mixto"}, "completion_rule": {"visitadas.length >= 8": "recorrido completo", "else": "recorrido incompleto, se listan solo localidades visitadas"}}];
+
+const NODE_BY_ID = {};
+STORY_NODES.forEach(n => NODE_BY_ID[n.id] = n);
+
+/* ============================================================
+   TOKENS DE DISEÑO
+   ============================================================ */
+const PALETTE = {
+  night:      0x14162b,
+  night2:     0x1f2244,
+  day:        0xe9e2d0,
+  day2:       0xd8cdb2,
+  ink:        0xece7dd,
+  inkDim:     0xb9b3a6,
+  accentWarm: 0xf2a03d,   // amarillo buseta / taxi
+  accentCool: 0x4fd1c5,   // rasgo positivo
+  accentRust: 0xc1440e,   // rasgo negativo
+  panelNight: 0x1a1c38,
+  panelDay:   0xf4efe2,
+};
+const FONT_DISPLAY = "'Barlow Condensed', sans-serif";
+const FONT_BODY    = "'Source Serif 4', serif";
+const FONT_MONO    = "'IBM Plex Mono', monospace";
+
+const STAT_ORDER = ["tolerancia","memoria","empatia","solidaridad","confianza","autenticidad","conciencia","legalidad"];
+
+const LOCATIONS = ["Chapinero","La Candelaria","San Cristóbal","Kennedy","Ciudad Bolívar","Suba","Puente Aranda","Usme"];
+const STAT_BY_LOCATION = {
+  "Chapinero":"tolerancia","La Candelaria":"memoria","San Cristóbal":"empatia","Kennedy":"solidaridad",
+  "Ciudad Bolívar":"confianza","Suba":"autenticidad","Puente Aranda":"conciencia","Usme":"legalidad"
+};
+
+const TRAITS = {
+  solidaridad:  { pos:"solidaria",                         neg:"fría con los desconocidos" },
+  tolerancia:   { pos:"abierta a lo distinto",              neg:"incómoda con lo que no le es familiar" },
+  memoria:      { pos:"memoriosa",                          neg:"olvidadiza" },
+  empatia:      { pos:"empática",                           neg:"distante frente al dolor ajeno" },
+  confianza:    { pos:"confiada",                           neg:"recelosa" },
+  autenticidad: { pos:"auténtica",                          neg:"acomodada a lo que otros quieren ver" },
+  conciencia:   { pos:"consciente de lo invisible",         neg:"indiferente a lo que no la toca directamente" },
+  legalidad:    { pos:"institucional",                      neg:"rebuscada" },
+};
+
+/* ============================================================
+   ESTADO DEL JUEGO (equivalente a las variables $ del twee)
+   ============================================================ */
+function shuffled(arr){
+  const a = arr.slice();
+  for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+
+class GameState {
+  constructor(){ this.reset(); }
+  reset(){
+    this.stats = {};
+    STAT_ORDER.forEach(s => this.stats[s]=0);
+    this.visitadas = [];
+    this.pool = shuffled(LOCATIONS);
+    this.momento = null;
+    this.currentNodeId = "Inicio";
+  }
+  applyEffects(effObj){
+    if(!effObj) return;
+    Object.entries(effObj).forEach(([k,v]) => { this.stats[k] = (this.stats[k]||0) + v; });
+  }
+  visitedCount(){ return this.visitadas.length; }
+  total(){ return STAT_ORDER.reduce((a,s)=>a+this.stats[s],0); }
+}
+
+/* Polygon "entity" shape driven by the 8 stats — the visual mirror
+   the concept doc describes: no numbers shown to the player, only form. */
+function entityPolygonPoints(stats, baseRadius, cx, cy){
+  const n = STAT_ORDER.length;
+  const pts = [];
+  for(let i=0;i<n;i++){
+    const v = stats[STAT_ORDER[i]] || 0;
+    const r = baseRadius + v * (baseRadius*0.18); // deform per point
+    const angle = (Math.PI*2 * i/n) - Math.PI/2;
+    pts.push({x: cx + r*Math.cos(angle), y: cy + r*Math.sin(angle)});
+  }
+  return pts;
+}
+
+/* ============================================================
+   ESCENA: MAPA — racimos alrededor de la entidad central
+   ============================================================ */
+class MapScene extends Phaser.Scene {
+  constructor(){ super('MapScene'); }
+  create(){
+    this.state = this.game.gState;
+    const W = this.scale.width, H = this.scale.height;
+    this.cameras.main.setBackgroundColor(PALETTE.night);
+
+    this.add.text(W/2, 34, 'BOGOTÁ — CUERPO RIZOMÁTICO', {
+      fontFamily: FONT_DISPLAY, fontSize: '26px', color: '#ece7dd', letterSpacing: 2
+    }).setOrigin(0.5);
+
+    this.add.text(W/2, 64,
+      this.state.visitedCount() === 0
+        ? 'La ciudad todavía no tiene forma. Elige una localidad para empezar a caminar.'
+        : `Localidades caminadas: ${this.state.visitedCount()} / 8`,
+      { fontFamily: FONT_MONO, fontSize: '13px', color: '#b9b3a6' }
+    ).setOrigin(0.5);
+
+    // --- entity polygon (signature element) ---
+    const cx = W/2, cy = H/2 + 10, baseR = 46;
+    this.entityGfx = this.add.graphics();
+    this.drawEntity(cx, cy, baseR);
+
+    // --- 8 location nodes around the entity ---
+    const radius = Math.min(W,H) * 0.34;
+    LOCATIONS.forEach((loc, i) => {
+      const angle = (Math.PI*2 * i/8) - Math.PI/2;
+      const x = cx + radius*Math.cos(angle);
+      const y = cy + radius*Math.sin(angle);
+      this.drawLocationNode(loc, x, y);
+    });
+
+    // --- finish button ---
+    const finishBtn = this.add.text(W/2, H-30, this.state.visitedCount()>0 ? '[ Terminar aquí el recorrido ]' : '',
+      { fontFamily: FONT_MONO, fontSize: '13px', color: '#f2a03d' }).setOrigin(0.5)
+      .setInteractive({ useHandCursor:true });
+    if(this.state.visitedCount()>0){
+      finishBtn.on('pointerdown', () => this.scene.start('EndingScene'));
+      finishBtn.on('pointerover', ()=>finishBtn.setColor('#4fd1c5'));
+      finishBtn.on('pointerout', ()=>finishBtn.setColor('#f2a03d'));
+    }
+  }
+
+  drawEntity(cx, cy, baseR){
+    this.entityGfx.clear();
+    const pts = entityPolygonPoints(this.state.stats, baseR, cx, cy);
+    const total = this.state.total();
+    const color = total > 0 ? PALETTE.accentCool : (total < 0 ? PALETTE.accentRust : 0x8892b0);
+    this.entityGfx.lineStyle(2, color, 1);
+    this.entityGfx.fillStyle(color, 0.12);
+    this.entityGfx.beginPath();
+    pts.forEach((p,i)=> i===0 ? this.entityGfx.moveTo(p.x,p.y) : this.entityGfx.lineTo(p.x,p.y));
+    this.entityGfx.closePath();
+    this.entityGfx.fillPath();
+    this.entityGfx.strokePath();
+    // core dot
+    this.entityGfx.fillStyle(0xece7dd, 1);
+    this.entityGfx.fillCircle(cx, cy, 4);
+  }
+
+  drawLocationNode(loc, x, y){
+    const visited = this.state.visitadas.includes(loc);
+    const available = this.state.pool.includes(loc) || (this.state.pool.length===0 && !visited && loc===this.state.pool[0]);
+    const canVisit = this.state.pool.includes(loc);
+    const stat = STAT_BY_LOCATION[loc];
+    const val = this.state.stats[stat];
+
+    let fill = 0x2b2f57, stroke = 0x565c8f;
+    if(visited){
+      fill = val>0 ? PALETTE.accentCool : (val<0 ? PALETTE.accentRust : 0x8892b0);
+      stroke = fill;
+    }
+
+    const r = 22;
+    const circle = this.add.circle(x, y, r, fill, visited?0.85:0.5).setStrokeStyle(2, stroke, 1);
+    const label = this.add.text(x, y+r+12, loc, {
+      fontFamily: FONT_DISPLAY, fontSize: '14px', color: visited ? '#ece7dd' : '#8892b0'
+    }).setOrigin(0.5);
+
+    if(canVisit){
+      circle.setInteractive({ useHandCursor:true });
+      circle.on('pointerover', ()=> circle.setStrokeStyle(3, PALETTE.accentWarm,1));
+      circle.on('pointerout', ()=> circle.setStrokeStyle(2, stroke,1));
+      circle.on('pointerdown', ()=> this.visitLocation(loc));
+    }
+  }
+
+  visitLocation(loc){
+    this.state.pool = this.state.pool.filter(l => l!==loc);
+    this.state.momento = Math.random() < 0.5 ? 'Día' : 'Noche';
+    this.state.visitadas.push(loc);
+    this.state.currentNodeId = `${loc}: Entrada`;
+    this.scene.start('DialogueScene');
+  }
+}
+
+/* ============================================================
+   ESCENA: DIÁLOGO — texto + decisiones
+   ============================================================ */
+class DialogueScene extends Phaser.Scene {
+  constructor(){ super('DialogueScene'); }
+  create(){
+    this.state = this.game.gState;
+    this.renderNode();
+  }
+
+  clearScene(){ this.children.removeAll(); }
+
+  resolveText(node){
+    if(!node.text) return '';
+    if(typeof node.text === 'string') return node.text;
+    return this.state.momento === 'Noche' ? node.text.night : node.text.day;
+  }
+
+  renderNode(){
+    this.clearScene();
+    const node = NODE_BY_ID[this.state.currentNodeId];
+    const W = this.scale.width, H = this.scale.height;
+    const isNight = this.state.momento === 'Noche';
+
+    this.cameras.main.setBackgroundColor(isNight ? PALETTE.night : PALETTE.day);
+    const inkColor = isNight ? '#ece7dd' : '#22201a';
+    const dimColor = isNight ? '#8892b0' : '#6b6455';
+
+    // location / moment header
+    if(node.location){
+      this.add.text(28, 24, node.location.toUpperCase(), {
+        fontFamily: FONT_DISPLAY, fontSize: '20px', color: isNight ? '#f2a03d' : '#c1440e'
+      });
+      this.add.text(W-28, 24, isNight ? 'NOCHE' : 'DÍA', {
+        fontFamily: FONT_MONO, fontSize: '12px', color: dimColor
+      }).setOrigin(1,0);
+    }
+
+    let body = this.resolveText(node);
+    if(node.extra_raw) body += '\n\n' + node.extra_raw;
+    if(node.mood_reaction){
+      const cond = this.evalMood(node.mood_reaction.condition);
+      body += '\n\n' + (cond ? node.mood_reaction.text_true : node.mood_reaction.text_false);
+    }
+    if(node.reveal){
+      const r = node.reveal;
+      const v = this.state.stats[r.stat];
+      body += '\n\n' + (v >= r.high_threshold ? r.text_high : (v <= r.low_threshold ? r.text_low : r.text_neutral));
+    }
+    if(node.memory_echo && this.evalEcho(node.memory_echo.condition)){
+      body += '\n\n' + node.memory_echo.text;
+    }
+
+    this.add.text(36, 70, body, {
+      fontFamily: FONT_BODY, fontSize: '16px', color: inkColor, wordWrap: { width: W-72 }, lineSpacing: 6
+    });
+
+    // choices
+    const choices = node.choices || [];
+    let cy = H - 26 - (choices.length-1)*40 - 20;
+    if(choices.length===0){
+      // system node fallback: auto-advance
+      this.time.delayedCall(50, () => this.advanceSystem(node));
+      return;
+    }
+    choices.forEach((c) => {
+      const btn = this.add.text(36, cy, '→ ' + c.text, {
+        fontFamily: FONT_DISPLAY, fontSize: '18px', color: isNight ? '#4fd1c5':'#c1440e'
+      }).setInteractive({ useHandCursor:true });
+      btn.on('pointerover', ()=>btn.setColor('#f2a03d'));
+      btn.on('pointerout', ()=>btn.setColor(isNight ? '#4fd1c5':'#c1440e'));
+      btn.on('pointerdown', ()=> this.choose(node, c));
+      cy += 34;
+    });
+  }
+
+  evalMood(cond){
+    // e.g. "$tolerancia > 0"
+    const m = cond.match(/\$(\w+)\s*([<>]=?)\s*(-?\d+)/);
+    if(!m) return false;
+    const [,stat,op,num] = m; const v = this.state.stats[stat]; const n = parseInt(num,10);
+    switch(op){ case '>': return v>n; case '<': return v<n; case '>=': return v>=n; case '<=': return v<=n; }
+    return false;
+  }
+  evalEcho(cond){
+    const m = cond.match(/\$(\w+)\s*([<>])\s*0/);
+    if(!m) return false;
+    const [,stat,op] = m; const v = this.state.stats[stat];
+    return op==='>' ? v>0 : v<0;
+  }
+
+  choose(node, choice){
+    // apply effects for this node (day/night aware) before leaving it
+    if(node.effects){
+      if(node.effects.day || node.effects.night){
+        this.state.applyEffects(this.state.momento==='Noche' ? node.effects.night : node.effects.day);
+      } else {
+        this.state.applyEffects(node.effects);
+      }
+    }
+    this.state.currentNodeId = choice.target;
+    const next = NODE_BY_ID[this.state.currentNodeId];
+    if(next && next.type === 'hub'){
+      this.scene.start('MapScene');
+    } else {
+      this.renderNode();
+    }
+  }
+
+  advanceSystem(node){
+    if(node.type === 'ending' || this.state.currentNodeId === 'Revelación final'){
+      this.scene.start('EndingScene');
+    } else {
+      this.scene.start('MapScene');
+    }
+  }
+}
+
+/* ============================================================
+   ESCENA: REVELACIÓN FINAL
+   ============================================================ */
+class EndingScene extends Phaser.Scene {
+  constructor(){ super('EndingScene'); }
+  create(){
+    const state = this.state = this.game.gState;
+    const W = this.scale.width, H = this.scale.height;
+    this.cameras.main.setBackgroundColor(PALETTE.night);
+
+    this.add.text(W/2, 40, 'REVELACIÓN', {
+      fontFamily: FONT_DISPLAY, fontSize: '28px', color: '#ece7dd', letterSpacing: 2
+    }).setOrigin(0.5);
+
+    // final entity, larger
+    const cx = W/2, cy = 150, baseR = 60;
+    const gfx = this.add.graphics();
+    const pts = entityPolygonPoints(state.stats, baseR, cx, cy);
+    const total = state.total();
+    const color = total > 0 ? PALETTE.accentCool : (total < 0 ? PALETTE.accentRust : 0x8892b0);
+    gfx.lineStyle(2, color, 1); gfx.fillStyle(color, 0.15);
+    gfx.beginPath(); pts.forEach((p,i)=> i===0?gfx.moveTo(p.x,p.y):gfx.lineTo(p.x,p.y));
+    gfx.closePath(); gfx.fillPath(); gfx.strokePath();
+
+    const traits = [];
+    STAT_ORDER.forEach(s => {
+      const v = state.stats[s];
+      if(v>0) traits.push(TRAITS[s].pos);
+      else if(v<0) traits.push(TRAITS[s].neg);
+    });
+
+    let desc = traits.length
+      ? `Se puede describir, hoy, como alguien ${traits.join(', ')}.`
+      : 'No terminó de inclinarse hacia ningún lado — todavía es, sobre todo, una posibilidad.';
+
+    let totalTxt = total>=4
+      ? 'Es, sobre todo, un reflejo amable de la ciudad: la parte de Bogotá que se detiene, que escucha, que confía un poco más de lo que le enseñaron.'
+      : (total<=-4
+        ? 'Es, sobre todo, un reflejo áspero de la ciudad: la parte que aprendió a no detenerse, a no confiar, a mirar para otro lado cuando algo incomoda.'
+        : 'Es, sobre todo, un reflejo mixto — como la ciudad misma, que no es una sola cosa, sino muchas decisiones pequeñas superpuestas.');
+
+    let completionTxt = state.visitedCount() >= 8
+      ? 'Y así, sin buscarlo, terminaste de construir algo con cada esquina en la que decidiste algo, de día o de noche. Bogotá no te enseñó una lección — te dejó ocho, y tú decidiste cuáles aprender.'
+      : `Y así, sin terminar de recorrerla toda (${state.visitedCount()} de 8 localidades), la ciudad ya alcanzó a dejar algo en ti.`;
+
+    this.add.text(30, 230, `${desc}\n\n${totalTxt}\n\n${completionTxt}`, {
+      fontFamily: FONT_BODY, fontSize: '15px', color: '#ece7dd', wordWrap:{width: W-60}, lineSpacing:6
+    });
+
+    const again = this.add.text(W/2, H-30, '[ Volver a empezar ]', {
+      fontFamily: FONT_MONO, fontSize: '13px', color: '#f2a03d'
+    }).setOrigin(0.5).setInteractive({useHandCursor:true});
+    again.on('pointerdown', ()=>{ this.game.gState.reset(); this.scene.start('MapScene'); });
+  }
+}
+
+/* ============================================================
+   ESCENA: INICIO
+   ============================================================ */
+class BootScene extends Phaser.Scene {
+  constructor(){ super('BootScene'); }
+  create(){
+    this.game.gState = new GameState();
+    const W = this.scale.width, H = this.scale.height;
+    this.cameras.main.setBackgroundColor(PALETTE.night);
+    this.add.text(W/2, H/2-40, 'CIUDADES EXPANDIDAS', {
+      fontFamily: FONT_DISPLAY, fontSize:'34px', color:'#ece7dd', letterSpacing:3
+    }).setOrigin(0.5);
+    this.add.text(W/2, H/2, 'Bogotá como cuerpo rizomático', {
+      fontFamily: FONT_BODY, fontStyle:'italic', fontSize:'16px', color:'#b9b3a6'
+    }).setOrigin(0.5);
+    const start = this.add.text(W/2, H/2+60, '[ Empezar a caminar ]', {
+      fontFamily: FONT_MONO, fontSize:'14px', color:'#f2a03d'
+    }).setOrigin(0.5).setInteractive({useHandCursor:true});
+    start.on('pointerover', ()=>start.setColor('#4fd1c5'));
+    start.on('pointerout', ()=>start.setColor('#f2a03d'));
+    start.on('pointerdown', ()=> this.scene.start('MapScene'));
+  }
+}
+
+/* ============================================================
+   CONFIG
+   ============================================================ */
+const config = {
+  type: Phaser.AUTO,
+  width: 720,
+  height: 720,
+  parent: 'game-root',
+  backgroundColor: '#0e1024',
+  scene: [BootScene, MapScene, DialogueScene, EndingScene]
+};
+
+window.onload = () => { new Phaser.Game(config); };
+</script>
+</body>
+</html>
