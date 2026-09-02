@@ -29,6 +29,33 @@ function scene(locality, key, outFile, subject) {
   return { type: 'scene', locality, key, outFile, prompt: `${SCENE_STYLE}\n\nSubject: ${subject}` };
 }
 
+// Vistas direccionales de un avatar ya existente: manda la imagen de frente
+// como referencia para que Gemini dibuje AL MISMO personaje (mismo peinado,
+// ropa y colores) visto desde otro ángulo, en vez de generar a alguien
+// distinto cada vez.
+const DIRECTION_PROMPTS = {
+  back: `Using the exact same character shown in the reference image — same
+hairstyle, same clothing colors and style, same body proportions — redraw
+them in the identical flat 2D pixel-art style, but seen from directly BEHIND
+(back view), as if they had turned around to face away from the camera.
+Standing pose, arms at sides.`,
+  left: `Using the exact same character shown in the reference image — same
+hairstyle, same clothing colors and style, same body proportions — redraw
+them in the identical flat 2D pixel-art style, but in profile seen from the
+LEFT side, facing left, as if walking to the left.`,
+  right: `Using the exact same character shown in the reference image — same
+hairstyle, same clothing colors and style, same body proportions — redraw
+them in the identical flat 2D pixel-art style, but in profile seen from the
+RIGHT side, facing right, as if walking to the right.`,
+};
+
+function avatarDir(locality, key, outFile, refImage, direction) {
+  return {
+    type: 'icon', locality, key, outFile, refImage,
+    prompt: `${ICON_STYLE}\n\n${DIRECTION_PROMPTS[direction]}`,
+  };
+}
+
 const JOBS = [
   // ---------- Edificios ya generados (tanda anterior) ----------
   icon('La Candelaria', 'ai_candelaria_fachada', 'Candelaria/generado/fachada_colonial_flat.png',
@@ -151,6 +178,63 @@ countryside.`),
   scene('Usme', 'ai_bg_usme_casa', 'Usme/generado/casa.png',
     `a simple rural house facade near Usme, Bogotá — humble brick or adobe
 walls, a corrugated metal roof, mountains and open fields in the background.`),
+
+  // ---------- Más elementos de calle para llenar los escenarios ----------
+  icon('La Candelaria', 'ai_candelaria_calle', 'Candelaria/generado/calle.png',
+    `a short straight cobblestone street segment from La Candelaria, Bogotá,
+viewed from a flat front-on angle (like a floor tile, not a road receding
+into the distance) — grey cobblestones with a worn stone-paved look, a
+narrow strip of curb along one edge.`),
+  icon('La Candelaria', 'ai_candelaria_tienda', 'Candelaria/generado/tienda.png',
+    `a small bohemian corner shop/café front typical of La Candelaria, Bogotá
+— colorful painted wooden facade, a simple awning, a display window with a
+few generic goods (books, crafts, coffee cups) visible but no readable text
+or signage.`),
+  icon('La Candelaria', 'ai_candelaria_casa2', 'Candelaria/generado/casa2.png',
+    `a second, smaller colonial house facade segment from La Candelaria,
+Bogotá, different from a grander building — a single wooden door, one small
+window with a flower box, whitewashed or pastel-colored wall, terracotta
+roof edge. Meant to sit beside another colonial building for variety.`),
+
+  icon('Suba', 'ai_suba_calle', 'Suba/generado/calle.png',
+    `a short straight paved asphalt street segment from Suba, Bogotá, viewed
+from a flat front-on angle (like a floor tile, not a road receding into the
+distance) — dark grey asphalt with a single dashed white lane line down the
+middle, a bit of curb along one edge.`),
+  icon('Suba', 'ai_suba_tienda', 'Suba/generado/tienda.png',
+    `a small modern neighborhood convenience store/tienda front typical of
+Suba, Bogotá — metal roll-down security shutter partly visible, a simple
+awning, a fridge/cooler visible through the window, no readable text or
+signage.`),
+  icon('Suba', 'ai_suba_cancha', 'Suba/generado/cancha.png',
+    `a fragment of an outdoor multi-sport court (cancha) common in Bogotá
+residential neighborhoods like Suba — a section of painted concrete court
+floor with faded court lines, a metal basketball hoop/backboard on a pole at
+one edge, chain-link fence section behind it.`),
 ];
 
-module.exports = { JOBS };
+const AVATAR_DEFS = [
+  { id: 'candelaria_frente', locality: 'La Candelaria', base: 'Candelaria/generado/avatar_joven' },
+  { id: 'ciudadbolivar_nina', locality: 'Ciudad Bolívar', base: 'Ciudad_Bolivar/generado/avatar_nina' },
+  { id: 'ciudadbolivar_senora', locality: 'Ciudad Bolívar', base: 'Ciudad_Bolivar/generado/avatar_senora' },
+  { id: 'puentearanda_1', locality: 'Puente Aranda', base: 'Puente_Aranda/generado/avatar_1' },
+  { id: 'puentearanda_2', locality: 'Puente Aranda', base: 'Puente_Aranda/generado/avatar_2' },
+  { id: 'puentearanda_3', locality: 'Puente Aranda', base: 'Puente_Aranda/generado/avatar_3' },
+  { id: 'sancristobal_1', locality: 'San Cristóbal', base: 'SanCristobal/generado/avatar_1' },
+  { id: 'sancristobal_3', locality: 'San Cristóbal', base: 'SanCristobal/generado/avatar_3' },
+  { id: 'sancristobal_6', locality: 'San Cristóbal', base: 'SanCristobal/generado/avatar_6' },
+  { id: 'sancristobal_9', locality: 'San Cristóbal', base: 'SanCristobal/generado/avatar_9' },
+  { id: 'suba_frente', locality: 'Suba', base: 'Suba/generado/avatar_frente' },
+  { id: 'usme_1', locality: 'Usme', base: 'Usme/generado/avatar_1' },
+  { id: 'usme_3', locality: 'Usme', base: 'Usme/generado/avatar_3' },
+  { id: 'usme_5', locality: 'Usme', base: 'Usme/generado/avatar_5' },
+];
+
+AVATAR_DEFS.forEach(a => {
+  const frontFile = `${a.base}.png`;
+  ['back', 'left', 'right'].forEach(dir => {
+    JOBS.push(avatarDir(a.locality, `ai_av_${a.id}_${dir}`, `${a.base}_${dir}.png`, frontFile, dir));
+  });
+});
+
+module.exports = { JOBS, AVATAR_DEFS };

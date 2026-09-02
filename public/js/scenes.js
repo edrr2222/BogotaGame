@@ -2,7 +2,7 @@ import { NODE_BY_ID } from './storyData.js';
 import {
   PALETTE, FONT_DISPLAY, FONT_BODY, FONT_MONO,
   STAT_ORDER, LOCATIONS, STAT_BY_LOCATION, TRAITS,
-  AVATAR_MANIFEST, BACKGROUND_MANIFEST, WALKABLE_SCENES, assetUrl,
+  AVATAR_MANIFEST, BACKGROUND_MANIFEST, WALKABLE_SCENES, assetUrl, avatarById,
 } from './gameConfig.js';
 import { entityPolygonPoints } from './gameState.js';
 import { DialogueBox } from './dialogueBox.js';
@@ -15,7 +15,9 @@ export class BootScene extends Phaser.Scene {
   constructor() { super('BootScene'); }
 
   preload() {
-    AVATAR_MANIFEST.forEach(a => this.load.image(a.key, assetUrl(a.path)));
+    AVATAR_MANIFEST.forEach(a => {
+      Object.values(a.dirs).forEach(d => this.load.image(d.key, assetUrl(d.path)));
+    });
     Object.values(BACKGROUND_MANIFEST).flat().forEach(b => this.load.image(b.key, assetUrl(b.path)));
     Object.values(WALKABLE_SCENES).forEach(cfg => {
       this.load.image(cfg.npc.key, assetUrl(cfg.npc.path));
@@ -40,9 +42,9 @@ export class BootScene extends Phaser.Scene {
     start.on('pointerover', () => start.setColor('#4fd1c5'));
     start.on('pointerout', () => start.setColor('#f2a03d'));
     start.on('pointerdown', () => {
-      window.showSetupOverlay(({ playerName, characterKey }) => {
+      window.showSetupOverlay(({ playerName, characterId }) => {
         this.game.gState.playerName = playerName;
-        this.game.gState.characterKey = characterKey;
+        this.game.gState.characterId = characterId;
         this.scene.start('MapScene');
       });
     });
@@ -63,8 +65,9 @@ export class MapScene extends Phaser.Scene {
       fontFamily: FONT_DISPLAY, fontSize: '22px', color: '#ece7dd', letterSpacing: 2
     }).setOrigin(0.5);
 
-    if (this.state.characterKey && this.textures.exists(this.state.characterKey)) {
-      this.add.image(30, 30, this.state.characterKey).setOrigin(0, 0).setDisplaySize(28, 28);
+    const avatar = avatarById(this.state.characterId);
+    if (avatar && this.textures.exists(avatar.dirs.front.key)) {
+      this.add.image(30, 30, avatar.dirs.front.key).setOrigin(0, 0).setDisplaySize(28, 28);
     }
     this.add.text(64, 24, this.state.playerName || 'Caminante', {
       fontFamily: FONT_MONO, fontSize: '13px', color: '#f2a03d'
@@ -210,6 +213,7 @@ export class WalkScene extends Phaser.Scene {
     const W = this.scale.width;
 
     this.cameras.main.setBackgroundColor(isNight ? cfg.groundColorNight : cfg.groundColorDay);
+    this.drawSky(isNight, W);
 
     this.add.text(24, 16, this.locality.toUpperCase(), {
       fontFamily: FONT_DISPLAY, fontSize: '20px', color: isNight ? '#f2a03d' : '#c1440e'
@@ -242,12 +246,14 @@ export class WalkScene extends Phaser.Scene {
       this.fitHeight(this.npc, 70);
     }
 
-    const charKey = this.state.characterKey;
-    this.player = this.textures.exists(charKey)
-      ? this.add.image(cfg.playerSpawn.x, cfg.playerSpawn.y, charKey)
+    this.avatar = avatarById(this.state.characterId);
+    this.facing = 'front';
+    const frontKey = this.avatar?.dirs.front.key;
+    this.player = (frontKey && this.textures.exists(frontKey))
+      ? this.add.image(cfg.playerSpawn.x, cfg.playerSpawn.y, frontKey)
       : this.add.rectangle(cfg.playerSpawn.x, cfg.playerSpawn.y, 26, 50, 0xece7dd);
     this.player.setDepth(4);
-    if (this.textures.exists(charKey)) this.fitHeight(this.player, 76);
+    if (frontKey && this.textures.exists(frontKey)) this.fitHeight(this.player, 76);
 
     this.prompt = this.add.text(0, 0, '[ESPACIO] hablar', {
       fontFamily: FONT_MONO, fontSize: '12px', color: '#f2a03d'
@@ -261,6 +267,51 @@ export class WalkScene extends Phaser.Scene {
   fitHeight(img, targetH) {
     const scale = targetH / img.height;
     img.setDisplaySize(img.width * scale, targetH);
+  }
+
+  // Cambia el sprite del jugador a la vista correspondiente (frente/espalda/
+  // izquierda/derecha) generada para ese avatar, en vez de solo espejear la
+  // imagen de frente.
+  setFacing(dir) {
+    if (!this.avatar || dir === this.facing) return;
+    const d = this.avatar.dirs[dir];
+    if (!d || !this.textures.exists(d.key)) return;
+    this.facing = dir;
+    this.player.setTexture(d.key);
+    this.fitHeight(this.player, 76);
+  }
+
+  drawSky(isNight, W) {
+    const skyH = 190;
+    this.add.rectangle(0, 0, W, skyH, isNight ? 0x0b0e24 : 0x8ec9e8, 1).setOrigin(0, 0).setDepth(-2);
+
+    if (isNight) {
+      this.add.circle(W - 90, 60, 22, 0xf4f0e0, 1).setDepth(-1);
+      this.add.circle(W - 80, 53, 18, 0x0b0e24, 1).setDepth(-1); // "muerde" la luna para dar forma de creciente
+      const stars = [[40,30],[90,70],[150,25],[210,55],[260,20],[310,65],[360,35],[420,15],
+        [460,60],[510,30],[560,50],[600,20],[30,90],[130,100],[240,95],[350,90],[450,100],[550,95],[620,80],[70,110]];
+      stars.forEach(([sx, sy]) => this.add.circle(sx, sy, 1.5, 0xffffff, 0.9).setDepth(-1));
+    } else {
+      this.add.circle(W - 90, 55, 30, 0xffe27a, 1).setDepth(-1);
+      this.add.circle(W - 90, 55, 22, 0xfff4c2, 1).setDepth(-1);
+      const cloudAt = (cx, cy) => {
+        const g = this.add.graphics().setDepth(-1);
+        g.fillStyle(0xffffff, 0.9);
+        g.fillEllipse(cx, cy, 46, 22);
+        g.fillEllipse(cx - 22, cy + 4, 30, 16);
+        g.fillEllipse(cx + 22, cy + 4, 30, 16);
+      };
+      cloudAt(140, 50);
+      cloudAt(340, 35);
+      cloudAt(500, 65);
+    }
+
+    // Filtro de opacamiento nocturno: capa oscura semitransparente sobre TODA
+    // la escena (encima de props/NPC/jugador, debajo del panel de diálogo y
+    // los textos de encabezado) para reforzar la sensación de noche.
+    if (isNight) {
+      this.add.rectangle(0, 0, W, this.scale.height, 0x0b0e24, 0.28).setOrigin(0, 0).setDepth(4.5);
+    }
   }
 
   update(time, delta) {
@@ -281,8 +332,12 @@ export class WalkScene extends Phaser.Scene {
       const b = this.cfg.bounds;
       this.player.x = Phaser.Math.Clamp(this.player.x + (dx / len) * speed, b.x + 20, b.x + b.w - 20);
       this.player.y = Phaser.Math.Clamp(this.player.y + (dy / len) * speed, b.y + 20, b.y + b.h - 20);
-      if (dx < 0) this.player.setFlipX(true);
-      else if (dx > 0) this.player.setFlipX(false);
+      // Horizontal manda sobre vertical si se presionan a la vez (A/D
+      // cambian a la vista de lado, W/S a espalda/frente).
+      if (dx < 0) this.setFacing('left');
+      else if (dx > 0) this.setFacing('right');
+      else if (dy < 0) this.setFacing('back');
+      else this.setFacing('front');
     }
 
     if (this.npc) {
@@ -365,7 +420,7 @@ export class EndingScene extends Phaser.Scene {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           playerName: this.state.playerName,
-          characterKey: this.state.characterKey,
+          characterId: this.state.characterId,
           stats: this.state.stats,
           visitadas: this.state.visitadas,
         }),

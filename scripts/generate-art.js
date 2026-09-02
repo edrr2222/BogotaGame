@@ -62,11 +62,21 @@ async function generateOne(job) {
     throw new Error('Falta la variable de entorno GEMINI_API_KEY.');
   }
 
-  console.log(`\n→ Generando "${job.key}" (${job.locality}, tipo=${job.type})...`);
+  console.log(`\n→ Generando "${job.key}" (${job.locality}, tipo=${job.type})${job.refImage ? ' [con imagen de referencia]' : ''}...`);
+
+  const requestParts = [{ text: job.prompt }];
+  if (job.refImage) {
+    const refPath = path.join(ASSETS_DIR, job.refImage);
+    if (!fs.existsSync(refPath)) throw new Error(`refImage no existe: ${job.refImage}`);
+    requestParts.push({
+      inlineData: { mimeType: 'image/png', data: fs.readFileSync(refPath).toString('base64') },
+    });
+  }
+
   const res = await fetch(`${API_URL}?key=${apiKey}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ contents: [{ parts: [{ text: job.prompt }] }] }),
+    body: JSON.stringify({ contents: [{ parts: requestParts }] }),
   });
 
   const body = await res.json();
@@ -75,8 +85,8 @@ async function generateOne(job) {
     throw new Error(`Gemini API respondió ${res.status}`);
   }
 
-  const parts = body?.candidates?.[0]?.content?.parts || [];
-  const imagePart = parts.find(p => p.inlineData && p.inlineData.mimeType?.startsWith('image/'));
+  const responseParts = body?.candidates?.[0]?.content?.parts || [];
+  const imagePart = responseParts.find(p => p.inlineData && p.inlineData.mimeType?.startsWith('image/'));
   if (!imagePart) {
     console.error('Respuesta completa (sin imagen):', JSON.stringify(body, null, 2));
     throw new Error('La respuesta no trajo ninguna imagen.');

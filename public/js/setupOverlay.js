@@ -1,6 +1,6 @@
 import { AVATAR_MANIFEST, assetUrl } from './gameConfig.js';
 
-let selectedKey = null;
+let selectedId = null;
 let onConfirmCallback = null;
 
 export function initSetupOverlay() {
@@ -16,7 +16,7 @@ export function initSetupOverlay() {
     el.className = 'avatar-option';
     el.title = av.label;
     const img = document.createElement('img');
-    img.src = assetUrl(av.path);
+    img.src = assetUrl(av.dirs.front.path);
     img.alt = av.label;
     const span = document.createElement('span');
     span.textContent = av.label;
@@ -25,7 +25,7 @@ export function initSetupOverlay() {
     el.addEventListener('click', () => {
       grid.querySelectorAll('.avatar-option').forEach(o => o.classList.remove('selected'));
       el.classList.add('selected');
-      selectedKey = av.key;
+      selectedId = av.id;
     });
     grid.appendChild(el);
   });
@@ -36,7 +36,7 @@ export function initSetupOverlay() {
       errorEl.textContent = 'Escribe un nombre para empezar.';
       return;
     }
-    if (!selectedKey) {
+    if (!selectedId) {
       errorEl.textContent = 'Elige un personaje de la galería.';
       return;
     }
@@ -44,13 +44,13 @@ export function initSetupOverlay() {
     overlay.hidden = true;
     const cb = onConfirmCallback;
     onConfirmCallback = null;
-    if (cb) cb({ playerName, characterKey: selectedKey });
+    if (cb) cb({ playerName, characterId: selectedId });
   });
 
   window.showSetupOverlay = (onConfirm) => {
     onConfirmCallback = onConfirm;
     nameInput.value = '';
-    selectedKey = null;
+    selectedId = null;
     errorEl.textContent = '';
     grid.querySelectorAll('.avatar-option').forEach(o => o.classList.remove('selected'));
     overlay.hidden = false;

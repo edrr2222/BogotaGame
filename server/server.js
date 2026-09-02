@@ -42,7 +42,7 @@ const STAT_ORDER = ['tolerancia', 'memoria', 'empatia', 'solidaridad', 'confianz
 function isValidRun(body) {
   if (!body || typeof body !== 'object') return false;
   if (typeof body.playerName !== 'string' || !body.playerName.trim()) return false;
-  if (typeof body.characterKey !== 'string') return false;
+  if (typeof body.characterId !== 'string') return false;
   if (!body.stats || typeof body.stats !== 'object') return false;
   if (!STAT_ORDER.every(s => Number.isInteger(body.stats[s]))) return false;
   if (!Array.isArray(body.visitadas)) return false;
@@ -55,7 +55,7 @@ app.post('/api/runs', async (req, res) => {
   }
   const run = {
     playerName: req.body.playerName.trim().slice(0, 60),
-    characterKey: req.body.characterKey,
+    characterId: req.body.characterId,
     stats: STAT_ORDER.reduce((acc, s) => { acc[s] = req.body.stats[s]; return acc; }, {}),
     total: STAT_ORDER.reduce((sum, s) => sum + req.body.stats[s], 0),
     visitadas: req.body.visitadas.filter(v => typeof v === 'string'),

@@ -21,7 +21,7 @@ export class GameState {
     this.momento = null;
     this.currentNodeId = "Inicio";
     this.playerName = '';
-    this.characterKey = null;
+    this.characterId = null;
     this.runSaved = false;
   }
 
