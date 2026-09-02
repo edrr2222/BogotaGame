@@ -25,8 +25,8 @@ no signature, no UI, no border, no captions baked into the image.`;
 function icon(locality, key, outFile, subject) {
   return { type: 'icon', locality, key, outFile, prompt: `${ICON_STYLE}\n\nSubject: ${subject}` };
 }
-function scene(locality, key, outFile, subject) {
-  return { type: 'scene', locality, key, outFile, prompt: `${SCENE_STYLE}\n\nSubject: ${subject}` };
+function scene(locality, key, outFile, subject, aspectRatio) {
+  return { type: 'scene', locality, key, outFile, aspectRatio, prompt: `${SCENE_STYLE}\n\nSubject: ${subject}` };
 }
 
 // Vistas direccionales de un avatar ya existente: manda la imagen de frente
@@ -211,6 +211,238 @@ signage.`),
 residential neighborhoods like Suba — a section of painted concrete court
 floor with faded court lines, a metal basketball hoop/backboard on a pole at
 one edge, chain-link fence section behind it.`),
+
+  // ---------- Variantes de acera para el carril caminable ----------
+  // Candelaria ya tenía ai_candelaria_piso (piso_acera.png) — se suman 2 más
+  // para que el camino no se vea como una sola baldosa repetida sin fin.
+  icon('La Candelaria', 'ai_candelaria_piso2', 'Candelaria/generado/piso_acera_2.png',
+    `a small square tile of grey stone sidewalk paving from La Candelaria,
+Bogotá, seamless/tileable texture, viewed from directly above, flat, no
+shadow — same style and scale as a plain cobblestone sidewalk tile, but with
+a couple of small tufts of grass or weeds growing between the stones.`),
+  icon('La Candelaria', 'ai_candelaria_piso3', 'Candelaria/generado/piso_acera_3.png',
+    `a small square tile of grey stone sidewalk paving from La Candelaria,
+Bogotá, seamless/tileable texture, viewed from directly above, flat, no
+shadow — same style and scale as a plain cobblestone sidewalk tile, but with
+a small round metal manhole/drain cover embedded in it.`),
+
+  // Suba no tenía piso propio (usaba una franja de color liso) — 3 variantes
+  // de acera de concreto moderna para el carril caminable.
+  icon('Suba', 'ai_suba_piso1', 'Suba/generado/piso_1.png',
+    `a small square tile of plain grey modern concrete sidewalk paving from
+Suba, Bogotá, seamless/tileable texture, viewed from directly above, flat,
+no shadow — smooth concrete slab with a thin expansion-joint line.`),
+  icon('Suba', 'ai_suba_piso2', 'Suba/generado/piso_2.png',
+    `a small square tile of plain grey modern concrete sidewalk paving from
+Suba, Bogotá, seamless/tileable texture, viewed from directly above, flat,
+no shadow — same style as a plain concrete slab, but with a thin visible
+crack running across it.`),
+  icon('Suba', 'ai_suba_piso3', 'Suba/generado/piso_3.png',
+    `a small square tile of plain grey modern concrete sidewalk paving from
+Suba, Bogotá, seamless/tileable texture, viewed from directly above, flat,
+no shadow — same style as a plain concrete slab, but with a little moss or
+grass growing in one seam.`),
+
+  // ---------- Fondos panorámicos continuos para los escenarios caminables ----------
+  // Reemplazan/complementan los edificios sueltos con huecos entre ellos: una
+  // sola imagen ancha con una fila CONTINUA de fachadas pegadas unas a otras
+  // (como en una calle real), montañas detrás de los techos, para que el
+  // fondo se vea lleno en vez de vacío.
+  scene('La Candelaria', 'ai_candelaria_streetscape', 'Candelaria/generado/streetscape.png',
+    `a continuous row of colonial building facades from La Candelaria, Bogotá,
+filling the frame edge to edge with NO gaps between buildings — each facade
+a different color (whitewashed, ochre yellow, terracotta orange, pale blue),
+dark wood doors and window shutters, wrought-iron balconies, terracotta
+tile roofs at slightly different heights, a narrow cobblestone street
+running along the bottom foreground. Green forested mountains visible above
+and behind the rooftops, soft daytime sky. Front elevation view of the
+street wall, like a game background strip — flat pixel-art style, not
+photorealistic.`, '16:9'),
+  scene('Suba', 'ai_suba_streetscape', 'Suba/generado/streetscape.png',
+    `a continuous row of modern apartment building facades from Suba, Bogotá,
+filling the frame edge to edge with NO gaps between buildings — each
+building a slightly different height and color (beige, terracotta brick,
+muted red, grey), rows of small windows and balconies, flat rooftops, a
+paved street with a faint lane line running along the bottom foreground.
+Green mountains visible above and behind the rooftops, soft daytime sky.
+Front elevation view of the street wall, like a game background strip —
+flat pixel-art style, not photorealistic.`, '16:9'),
+
+  // ---------- Cada localidad caminable ahora son 3 pantallas conectadas
+  // por los bordes, terminando en una parada de bus/Transmilenio que manda
+  // a otra localidad al azar. Candelaria y Suba ya tenían pantalla 0
+  // (streetscape.png) — se agregan las pantallas 1 y 2. San Cristóbal,
+  // Ciudad Bolívar, Puente Aranda y Usme se arman completas desde cero.
+
+  // parada compartida por las 6 localidades (infraestructura genérica, no
+  // hace falta una versión distinta por zona)
+  icon('La Candelaria', 'ai_busstop', 'Compartido/generado/parada_bus.png',
+    `a Transmilenio-style BRT bus stop/station shelter from Bogotá — red and
+white color scheme, glass panel walls, a covered waiting area, a simple bus
+stop sign on top. Side/front view, standalone structure.`),
+
+  // --- La Candelaria: pantallas 1 y 2 ---
+  scene('La Candelaria', 'ai_candelaria_streetscape2', 'Candelaria/generado/streetscape_2.png',
+    `a continuous row of colonial building facades from La Candelaria,
+Bogotá — a DIFFERENT stretch of the same colonial street as a continuation
+(not a repeat): different colors (deep red, ochre, white, green trim), one
+building has a small tree or potted plants on a balcony, dark wood doors and
+shutters, terracotta tile roofs, narrow cobblestone street along the bottom.
+Green forested mountains visible above the rooftops, soft daytime sky. Front
+elevation street-wall view, flat pixel-art style, not photorealistic.`, '16:9'),
+  scene('La Candelaria', 'ai_candelaria_streetscape3', 'Candelaria/generado/streetscape_3.png',
+    `a continuous row of colonial building facades from La Candelaria,
+Bogotá — the end of the block, where the street opens slightly into a small
+plaza-like widening near a bus stop: colorful facades (blue, yellow,
+white), one corner building with a rounded corner typical of colonial
+Bogotá, terracotta roofs, cobblestone street. Green mountains visible above
+the rooftops, soft daytime sky. Front elevation street-wall view, flat
+pixel-art style, not photorealistic.`, '16:9'),
+
+  // --- Suba: pantallas 1 y 2 ---
+  scene('Suba', 'ai_suba_streetscape2', 'Suba/generado/streetscape_2.png',
+    `a continuous row of modern apartment building facades from Suba,
+Bogotá — a DIFFERENT stretch of the same street as a continuation (not a
+repeat): different heights and colors (grey, beige, dark red), one building
+has visible rooftop water tanks, rows of small windows and balconies, flat
+rooftops, paved street with a faint lane line along the bottom. Green
+mountains visible above the rooftops, soft daytime sky. Front elevation
+street-wall view, flat pixel-art style, not photorealistic.`, '16:9'),
+  scene('Suba', 'ai_suba_streetscape3', 'Suba/generado/streetscape_3.png',
+    `a continuous row of modern apartment building facades from Suba,
+Bogotá — the end of the block near a bus stop, buildings slightly lower
+here with a small commercial ground floor (shopfronts) under the
+apartments, muted colors (beige, terracotta, grey), paved street along the
+bottom. Green mountains visible above the rooftops, soft daytime sky. Front
+elevation street-wall view, flat pixel-art style, not photorealistic.`, '16:9'),
+
+  // --- San Cristóbal: NPC + 3 pantallas + prop propio ---
+  icon('San Cristóbal', 'ai_npc_sancristobal', 'SanCristobal/generado/npc_espalda.png',
+    'a teenage girl pedestrian seen from behind (back view), simple casual clothes, standing still, on a hillside street.'),
+  icon('San Cristóbal', 'ai_sancristobal_escalera', 'SanCristobal/generado/escalera.png',
+    `a steep flight of narrow concrete stairs built into a hillside street in
+San Cristóbal, Bogotá, with a simple metal handrail — a common way to
+connect street levels on a steep slope.`),
+  scene('San Cristóbal', 'ai_sancristobal_streetscape1', 'SanCristobal/generado/streetscape_1.png',
+    `a continuous row of modest self-built brick houses on a steep hillside
+street in San Cristóbal, Bogotá, filling the frame edge to edge with NO
+gaps — unpainted or partially painted brick facades, simple doors and
+windows, corrugated metal roof edges at uneven heights (informal
+self-built look), narrow paved street sloping uphill in the foreground.
+Green mountains close behind the rooftops (this neighborhood IS on the
+mountainside), overcast daytime sky. Front elevation street-wall view, flat
+pixel-art style, not photorealistic.`, '16:9'),
+  scene('San Cristóbal', 'ai_sancristobal_streetscape2', 'SanCristobal/generado/streetscape_2.png',
+    `a continuous row of modest self-built brick houses on a steep hillside
+street in San Cristóbal, Bogotá — a different stretch continuing uphill,
+some houses with exposed unfinished brick, laundry hanging from a window,
+a small retaining wall, corrugated metal roofs. Green mountains close
+behind the rooftops, overcast daytime sky. Front elevation street-wall
+view, flat pixel-art style, not photorealistic.`, '16:9'),
+  scene('San Cristóbal', 'ai_sancristobal_streetscape3', 'SanCristobal/generado/streetscape_3.png',
+    `a continuous row of modest self-built brick houses on a steep hillside
+street in San Cristóbal, Bogotá, near a small landing/bus stop area where
+the slope levels off briefly — brick and painted concrete facades, a small
+neighborhood shop with a metal shutter, corrugated roofs. Green mountains
+close behind the rooftops, overcast daytime sky. Front elevation
+street-wall view, flat pixel-art style, not photorealistic.`, '16:9'),
+
+  // --- Ciudad Bolívar: NPC + 3 pantallas + prop propio ---
+  icon('Ciudad Bolívar', 'ai_npc_ciudadbolivar', 'Ciudad_Bolivar/generado/npc_espalda.png',
+    'a young adult pedestrian seen from behind (back view), casual streetwear with a small backpack, standing still.'),
+  icon('Ciudad Bolívar', 'ai_ciudadbolivar_mural', 'Ciudad_Bolivar/generado/mural.png',
+    `a section of a colorful urban art mural painted on a plain wall in
+Ciudad Bolívar, Bogotá — abstract geometric shapes and faces in bright
+colors (orange, teal, purple, yellow), typical of Bogotá street-art
+collectives.`),
+  scene('Ciudad Bolívar', 'ai_ciudadbolivar_streetscape1', 'Ciudad_Bolivar/generado/streetscape_1.png',
+    `a continuous row of self-built hillside apartment/house blocks in
+Ciudad Bolívar, Bogotá, filling the frame edge to edge with NO gaps —
+stacked informal construction (unfinished brick and painted concrete mixed
+together), one long wall covered in a colorful urban art mural, narrow
+paved street in the foreground. Green mountains close behind the rooftops,
+soft daytime sky. Front elevation street-wall view, flat pixel-art style,
+not photorealistic.`, '16:9'),
+  scene('Ciudad Bolívar', 'ai_ciudadbolivar_streetscape2', 'Ciudad_Bolivar/generado/streetscape_2.png',
+    `a continuous row of self-built hillside apartment/house blocks in
+Ciudad Bolívar, Bogotá — a different stretch continuing along the slope,
+mixed brick and painted concrete facades in muted colors, a small mural
+fragment on one wall, rooftop water tanks. Green mountains close behind
+the rooftops, soft daytime sky. Front elevation street-wall view, flat
+pixel-art style, not photorealistic.`, '16:9'),
+  scene('Ciudad Bolívar', 'ai_ciudadbolivar_streetscape3', 'Ciudad_Bolivar/generado/streetscape_3.png',
+    `a continuous row of self-built hillside apartment/house blocks in
+Ciudad Bolívar, Bogotá, near a small viewpoint/bus stop area with a wide
+view over the city below — informal construction facades, a bright mural
+on a corner building, narrow paved street. Green mountains close behind
+the rooftops, soft daytime sky. Front elevation street-wall view, flat
+pixel-art style, not photorealistic.`, '16:9'),
+
+  // --- Puente Aranda: NPC + 3 pantallas + prop propio ---
+  icon('Puente Aranda', 'ai_npc_puentearanda', 'Puente_Aranda/generado/npc_espalda.png',
+    'an adult worker pedestrian seen from behind (back view), grey work jacket, standing still.'),
+  icon('Puente Aranda', 'ai_puentearanda_tambores', 'Puente_Aranda/generado/tambores.png',
+    'a small stack of industrial metal storage barrels/drums next to a couple of stacked wooden pallets, typical of a warehouse yard.'),
+  scene('Puente Aranda', 'ai_puentearanda_streetscape1', 'Puente_Aranda/generado/streetscape_1.png',
+    `a continuous row of industrial warehouse and factory facades from
+Puente Aranda, Bogotá, filling the frame edge to edge with NO gaps —
+corrugated metal walls in muted colors (grey, faded blue, rust), large
+loading doors, a couple of thin smokestacks in the background, a straight
+paved industrial road in the foreground. Overcast grey sky, no mountains
+needed (flat industrial zone). Front elevation street-wall view, flat
+pixel-art style, not photorealistic.`, '16:9'),
+  scene('Puente Aranda', 'ai_puentearanda_streetscape2', 'Puente_Aranda/generado/streetscape_2.png',
+    `a continuous row of industrial warehouse and factory facades from
+Puente Aranda, Bogotá — a different stretch continuing down the road, one
+warehouse with visible pipes running along the outside wall, a loading dock
+with a parked truck silhouette, paved road in the foreground. Overcast grey
+sky. Front elevation street-wall view, flat pixel-art style, not
+photorealistic.`, '16:9'),
+  scene('Puente Aranda', 'ai_puentearanda_streetscape3', 'Puente_Aranda/generado/streetscape_3.png',
+    `a continuous row of industrial warehouse facades from Puente Aranda,
+Bogotá, near a bus stop at a road junction — muted-color metal warehouse
+walls, a small guard booth/gate structure, paved road with a faded lane
+line. Overcast grey sky. Front elevation street-wall view, flat pixel-art
+style, not photorealistic.`, '16:9'),
+
+  // --- Usme: NPC + 3 pantallas + prop propio + piso rural nuevo ---
+  icon('Usme', 'ai_npc_usme', 'Usme/generado/npc_espalda.png',
+    'an adult pedestrian seen from behind (back view), simple rural clothing, standing still.'),
+  icon('Usme', 'ai_usme_cerca', 'Usme/generado/cerca.png',
+    'a simple wooden fence segment with a small wooden gate, rural style, typical of the rural edge of Bogotá.'),
+  scene('Usme', 'ai_usme_streetscape1', 'Usme/generado/streetscape_1.png',
+    `a row of a few simple rural houses at the edge of Bogotá near Usme,
+spaced apart (not a dense city wall like downtown) with open green fields
+and rolling hills visible between and behind them — humble brick/adobe
+walls, corrugated metal roofs, a dirt road in the foreground. Green
+mountains in the far background, soft daytime sky, a sense of the city
+dissolving into countryside. Front elevation view, flat pixel-art style,
+not photorealistic.`, '16:9'),
+  scene('Usme', 'ai_usme_streetscape2', 'Usme/generado/streetscape_2.png',
+    `open green rural fields and rolling hills at the edge of Bogotá near
+Usme, a dirt path running along the foreground, a small wooden fence, one
+or two distant humble houses, a small stream crossing the field. Green
+mountains in the background, soft daytime sky. Front elevation view, flat
+pixel-art style, not photorealistic.`, '16:9'),
+  scene('Usme', 'ai_usme_streetscape3', 'Usme/generado/streetscape_3.png',
+    `a small rural crossroads at the edge of Bogotá near Usme where a dirt
+road meets a paved road (transition point back toward the city), a couple
+of humble houses, open fields and hills around, mountains in the
+background, soft daytime sky. Front elevation view, flat pixel-art style,
+not photorealistic.`, '16:9'),
+  icon('Usme', 'ai_usme_piso1', 'Usme/generado/piso_1.png',
+    `a small square tile of a rural dirt/gravel path from Usme, Bogotá,
+seamless/tileable texture, viewed from directly above, flat, no shadow —
+packed brown dirt with small stones and a few sparse grass tufts.`),
+  icon('Usme', 'ai_usme_piso2', 'Usme/generado/piso_2.png',
+    `a small square tile of a rural dirt/gravel path from Usme, Bogotá,
+seamless/tileable texture, viewed from directly above, flat, no shadow —
+same style as a plain dirt path tile, but with a bit more visible grass
+growing through it.`),
+  icon('Usme', 'ai_usme_piso3', 'Usme/generado/piso_3.png',
+    `a small square tile of a rural dirt/gravel path from Usme, Bogotá,
+seamless/tileable texture, viewed from directly above, flat, no shadow —
+same style as a plain dirt path tile, but with a small puddle or wet patch.`),
 ];
 
 const AVATAR_DEFS = [

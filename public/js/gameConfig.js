@@ -86,83 +86,250 @@ export function avatarById(id) {
 }
 
 // Fondos por localidad para DialogueScene: capas dibujadas de atrás hacia
-// adelante detrás del panel de texto. Localidades ausentes aquí (Chapinero,
-// Kennedy, y las que ya tienen escenario caminable en WALKABLE_SCENES) usan
-// el fondo de color liso existente.
-export const BACKGROUND_MANIFEST = {
-  "San Cristóbal": [
-    { key: 'bg_sancristobal_calle1', path: 'SanCristobal/generado/calle.png' },
-    { key: 'bg_sancristobal_casa1', path: 'SanCristobal/generado/casa.png' },
-  ],
-  "Ciudad Bolívar": [
-    { key: 'bg_ciudadbolivar_esquina', path: 'Ciudad_Bolivar/generado/esquina.png' },
-    { key: 'bg_ciudadbolivar_iso1', path: 'Ciudad_Bolivar/generado/edificio.png' },
-  ],
-  "Puente Aranda": [
-    { key: 'bg_puentearanda_carretera', path: 'Puente_Aranda/generado/carretera.png' },
-    { key: 'bg_puentearanda_centro1', path: 'Puente_Aranda/generado/bodega.png' },
-  ],
-  "Usme": [
-    { key: 'bg_usme_montanas', path: 'Usme/generado/montanas.png' },
-    { key: 'bg_usme_fachada', path: 'Usme/generado/casa.png' },
-  ],
-};
+// adelante detrás del panel de texto. Ahora solo lo usan Chapinero y
+// Kennedy (las únicas 2 sin escenario caminable en WALKABLE_SCENES) — y
+// ninguna de las dos tiene arte propio, así que quedan con el fondo de
+// color liso existente. Las 6 localidades caminables ya no pasan por acá.
+export const BACKGROUND_MANIFEST = {};
 
 /* ============================================================
    ESCENARIOS CAMINABLES — WASD dentro de una localidad. Todos los
    props/NPCs de aquí son PNG de 1024x1024 generados con Gemini
    (fondo magenta recortado por chroma-key en generate-art.js), por
-   eso los `scale` son chicos.
+   eso los `scale` son chicos. `streetscape` es un fondo panorámico
+   (16:9) con una fila CONTINUA de fachadas — reemplaza los edificios
+   sueltos con huecos entre ellos que había antes.
+   `walkY` define el carril caminable real (una franja angosta sobre
+   la acera, no todo el alto de la escena) para que el jugador no
+   camine por encima de los techos ni flotando en el cielo.
+   `pathTiles` son las variantes de baldosa que se van alternando a
+   lo largo de ese carril.
    Solo 2 localidades por ahora: La Candelaria y Suba.
    ============================================================ */
 const WALK_BOUNDS = { x: 30, y: 90, w: 660, h: 400 };
+const WALK_Y = { min: 410, max: 468 };
+const DEFAULT_WALK = { groundColorDay: PALETTE.day2, groundColorNight: PALETTE.night2, bounds: WALK_BOUNDS, walkY: WALK_Y };
+
+// Parada de bus/Transmilenio compartida por las 6 localidades caminables —
+// infraestructura genérica, no hace falta una versión distinta por zona.
+const BUS_STOP = { key: 'busstop_shared', path: 'Compartido/generado/parada_bus.png' };
+
+// Props genéricos (árboles, bancas, postes...) reusados entre localidades
+// para llenar las pantallas de tránsito sin tener que generar una versión
+// distinta de cada uno por zona — lo que sí cambia por localidad es el
+// streetscape de fondo, el NPC y 1-2 props "de firma" propios.
+const GENERIC = {
+  arbol1: 'Suba/generado/arbol_1.png', arbol2: 'Suba/generado/arbol_2.png',
+  arbusto1: 'Suba/generado/arbusto_1.png', arbusto2: 'Suba/generado/arbusto_2.png',
+  arbustoEsferico: 'Suba/generado/arbusto_esferico.png',
+  banco: 'Candelaria/generado/banco.png',
+  postePared: 'Candelaria/generado/poste_luz.png', posteIso: 'Suba/generado/poste_luz.png',
+  caneca: 'Suba/generado/canecas.png', maceta: 'Candelaria/generado/maceta.png',
+  senalAlto: 'Candelaria/generado/senal_alto.png', reja: 'Suba/generado/reja_negra.png',
+  carro: 'Candelaria/generado/carro.png', moto: 'Candelaria/generado/moto.png',
+};
 
 export const WALKABLE_SCENES = {
   "La Candelaria": {
-    groundColorDay: PALETTE.day2,
-    groundColorNight: PALETTE.night2,
-    bounds: WALK_BOUNDS,
-    playerSpawn: { x: 150, y: 430 },
-    floorTile: { key: 'floor_candelaria', path: 'Candelaria/generado/piso_acera.png', tileScale: 0.05 },
-    npc: { key: 'npc_candelaria', path: 'Candelaria/generado/npc_espalda.png', x: 540, y: 360 },
-    props: [
-      { key: 'prop_candelaria_senal', path: 'Candelaria/generado/senal_alto.png', x: 90, y: 250, scale: 0.07, depth: 1 },
-      { key: 'prop_candelaria_farola', path: 'Candelaria/generado/farola_pared.png', x: 180, y: 210, scale: 0.09, depth: 1 },
-      { key: 'prop_candelaria_tienda', path: 'Candelaria/generado/tienda.png', x: 280, y: 245, scale: 0.13, depth: 1 },
-      { key: 'prop_candelaria_fachada', path: 'Candelaria/generado/fachada_colonial_flat.png', x: 460, y: 250, scale: 0.22, depth: 1 },
-      { key: 'prop_candelaria_casa2', path: 'Candelaria/generado/casa2.png', x: 610, y: 250, scale: 0.14, depth: 1 },
-      { key: 'prop_candelaria_poste', path: 'Candelaria/generado/poste_luz.png', x: 665, y: 220, scale: 0.1, depth: 1 },
-      // mobiliario urbano y calle, para que no se sienta vacío
-      { key: 'prop_candelaria_maceta', path: 'Candelaria/generado/maceta.png', x: 470, y: 335, scale: 0.07, depth: 2 },
-      { key: 'prop_candelaria_banco', path: 'Candelaria/generado/banco.png', x: 250, y: 405, scale: 0.07, depth: 2 },
-      { key: 'prop_candelaria_rejilla', path: 'Candelaria/generado/rejilla.png', x: 350, y: 460, scale: 0.04, depth: 2 },
-      { key: 'prop_candelaria_calle', path: 'Candelaria/generado/calle.png', x: 540, y: 458, scale: 0.16, depth: 2 },
-      { key: 'prop_candelaria_moto', path: 'Candelaria/generado/moto.png', x: 130, y: 415, scale: 0.09, depth: 2 },
-      { key: 'prop_candelaria_carro', path: 'Candelaria/generado/carro.png', x: 610, y: 410, scale: 0.11, depth: 2 },
+    ...DEFAULT_WALK,
+    pathTiles: [
+      { key: 'floor_candelaria_1', path: 'Candelaria/generado/piso_acera.png' },
+      { key: 'floor_candelaria_2', path: 'Candelaria/generado/piso_acera_2.png' },
+      { key: 'floor_candelaria_3', path: 'Candelaria/generado/piso_acera_3.png' },
+    ],
+    screens: [
+      {
+        streetscape: { key: 'streetscape_candelaria_1', path: 'Candelaria/generado/streetscape.png' },
+        npc: { key: 'npc_candelaria', path: 'Candelaria/generado/npc_espalda.png', x: 540, y: 440 },
+        props: [
+          { key: 'prop_candelaria_senal', path: GENERIC.senalAlto, x: 90, y: 400, scale: 0.07, depth: 1 },
+          { key: 'prop_candelaria_farola', path: 'Candelaria/generado/farola_pared.png', x: 180, y: 370, scale: 0.09, depth: 1 },
+          { key: 'prop_candelaria_maceta', path: GENERIC.maceta, x: 470, y: 400, scale: 0.07, depth: 2 },
+          { key: 'prop_candelaria_banco', path: GENERIC.banco, x: 250, y: 400, scale: 0.07, depth: 2 },
+          { key: 'prop_candelaria_moto', path: GENERIC.moto, x: 130, y: 400, scale: 0.09, depth: 2 },
+        ],
+      },
+      {
+        streetscape: { key: 'streetscape_candelaria_2', path: 'Candelaria/generado/streetscape_2.png' },
+        props: [
+          { key: 'prop_candelaria_poste', path: 'Candelaria/generado/poste_luz.png', x: 380, y: 370, scale: 0.1, depth: 1 },
+          { key: 'prop_candelaria_carro', path: GENERIC.carro, x: 610, y: 400, scale: 0.11, depth: 2 },
+          { key: 'prop_candelaria_rejilla', path: 'Candelaria/generado/rejilla.png', x: 250, y: 400, scale: 0.04, depth: 2 },
+          { key: 'prop_candelaria_arbusto', path: GENERIC.arbusto1, x: 150, y: 400, scale: 0.08, depth: 2 },
+        ],
+      },
+      {
+        streetscape: { key: 'streetscape_candelaria_3', path: 'Candelaria/generado/streetscape_3.png' },
+        busStop: { ...BUS_STOP, x: 500, y: 440 },
+        props: [
+          { key: 'prop_candelaria_maceta2', path: GENERIC.maceta, x: 200, y: 400, scale: 0.07, depth: 2 },
+        ],
+      },
     ],
   },
   "Suba": {
-    groundColorDay: PALETTE.day2,
-    groundColorNight: PALETTE.night2,
-    bounds: WALK_BOUNDS,
-    playerSpawn: { x: 150, y: 430 },
-    floorTile: null, // sin textura propia de piso: WalkScene cae a una franja de color liso.
-    npc: { key: 'npc_suba', path: 'Suba/generado/npc_espalda.png', x: 540, y: 360 },
-    props: [
-      { key: 'prop_suba_torre', path: 'Suba/generado/torre_flat.png', x: 630, y: 210, scale: 0.16, depth: 1 },
-      { key: 'prop_suba_apartamentos', path: 'Suba/generado/apartamentos_flat.png', x: 300, y: 220, scale: 0.2, depth: 1 },
-      { key: 'prop_suba_tienda', path: 'Suba/generado/tienda.png', x: 470, y: 235, scale: 0.12, depth: 1 },
-      { key: 'prop_suba_arbol1', path: 'Suba/generado/arbol_1.png', x: 110, y: 330, scale: 0.13, depth: 2 },
-      { key: 'prop_suba_arbol2', path: 'Suba/generado/arbol_2.png', x: 660, y: 420, scale: 0.13, depth: 2 },
-      { key: 'prop_suba_arbusto1', path: 'Suba/generado/arbusto_1.png', x: 200, y: 460, scale: 0.08, depth: 2 },
-      { key: 'prop_suba_arbusto2', path: 'Suba/generado/arbusto_2.png', x: 430, y: 460, scale: 0.08, depth: 2 },
-      { key: 'prop_suba_reja', path: 'Suba/generado/reja_negra.png', x: 420, y: 300, scale: 0.1, depth: 1 },
-      { key: 'prop_suba_poste', path: 'Suba/generado/poste_luz.png', x: 545, y: 280, scale: 0.13, depth: 1 },
-      { key: 'prop_suba_cancha', path: 'Suba/generado/cancha.png', x: 570, y: 385, scale: 0.16, depth: 2 },
-      { key: 'prop_suba_calle', path: 'Suba/generado/calle.png', x: 320, y: 458, scale: 0.18, depth: 2 },
-      { key: 'prop_suba_seto', path: 'Suba/generado/seto.png', x: 230, y: 430, scale: 0.09, depth: 2 },
-      { key: 'prop_suba_arbustoesferico', path: 'Suba/generado/arbusto_esferico.png', x: 480, y: 440, scale: 0.07, depth: 2 },
-      { key: 'prop_suba_canecas', path: 'Suba/generado/canecas.png', x: 175, y: 400, scale: 0.07, depth: 2 },
+    ...DEFAULT_WALK,
+    pathTiles: [
+      { key: 'floor_suba_1', path: 'Suba/generado/piso_1.png' },
+      { key: 'floor_suba_2', path: 'Suba/generado/piso_2.png' },
+      { key: 'floor_suba_3', path: 'Suba/generado/piso_3.png' },
+    ],
+    screens: [
+      {
+        streetscape: { key: 'streetscape_suba_1', path: 'Suba/generado/streetscape.png' },
+        npc: { key: 'npc_suba', path: 'Suba/generado/npc_espalda.png', x: 540, y: 440 },
+        props: [
+          { key: 'prop_suba_arbol1', path: GENERIC.arbol1, x: 110, y: 390, scale: 0.13, depth: 2 },
+          { key: 'prop_suba_arbusto1', path: GENERIC.arbusto1, x: 200, y: 400, scale: 0.08, depth: 2 },
+          { key: 'prop_suba_reja', path: GENERIC.reja, x: 420, y: 380, scale: 0.1, depth: 1 },
+          { key: 'prop_suba_cancha', path: 'Suba/generado/cancha.png', x: 570, y: 400, scale: 0.16, depth: 2 },
+        ],
+      },
+      {
+        streetscape: { key: 'streetscape_suba_2', path: 'Suba/generado/streetscape_2.png' },
+        props: [
+          { key: 'prop_suba_poste', path: GENERIC.posteIso, x: 300, y: 370, scale: 0.13, depth: 1 },
+          { key: 'prop_suba_seto', path: 'Suba/generado/seto.png', x: 460, y: 400, scale: 0.09, depth: 2 },
+          { key: 'prop_suba_arbustoesferico', path: GENERIC.arbustoEsferico, x: 560, y: 400, scale: 0.07, depth: 2 },
+          { key: 'prop_suba_canecas', path: GENERIC.caneca, x: 175, y: 400, scale: 0.07, depth: 2 },
+        ],
+      },
+      {
+        streetscape: { key: 'streetscape_suba_3', path: 'Suba/generado/streetscape_3.png' },
+        busStop: { ...BUS_STOP, x: 500, y: 440 },
+        props: [
+          { key: 'prop_suba_arbol2', path: GENERIC.arbol2, x: 660, y: 400, scale: 0.13, depth: 2 },
+          { key: 'prop_suba_arbusto2', path: GENERIC.arbusto2, x: 200, y: 400, scale: 0.08, depth: 2 },
+        ],
+      },
+    ],
+  },
+  "San Cristóbal": {
+    ...DEFAULT_WALK,
+    pathTiles: [
+      { key: 'floor_candelaria_1', path: 'Candelaria/generado/piso_acera.png' },
+      { key: 'floor_candelaria_2', path: 'Candelaria/generado/piso_acera_2.png' },
+      { key: 'floor_candelaria_3', path: 'Candelaria/generado/piso_acera_3.png' },
+    ],
+    screens: [
+      {
+        streetscape: { key: 'streetscape_sancristobal_1', path: 'SanCristobal/generado/streetscape_1.png' },
+        npc: { key: 'npc_sancristobal', path: 'SanCristobal/generado/npc_espalda.png', x: 540, y: 440 },
+        props: [
+          { key: 'prop_sancristobal_escalera', path: 'SanCristobal/generado/escalera.png', x: 250, y: 380, scale: 0.14, depth: 1 },
+          { key: 'prop_sancristobal_arbusto', path: GENERIC.arbusto1, x: 130, y: 400, scale: 0.08, depth: 2 },
+          { key: 'prop_sancristobal_caneca', path: GENERIC.caneca, x: 620, y: 400, scale: 0.07, depth: 2 },
+        ],
+      },
+      {
+        streetscape: { key: 'streetscape_sancristobal_2', path: 'SanCristobal/generado/streetscape_2.png' },
+        props: [
+          { key: 'prop_sancristobal_poste', path: GENERIC.postePared, x: 350, y: 370, scale: 0.1, depth: 1 },
+          { key: 'prop_sancristobal_arbol', path: GENERIC.arbol1, x: 550, y: 390, scale: 0.13, depth: 2 },
+        ],
+      },
+      {
+        streetscape: { key: 'streetscape_sancristobal_3', path: 'SanCristobal/generado/streetscape_3.png' },
+        busStop: { ...BUS_STOP, x: 500, y: 440 },
+        props: [
+          { key: 'prop_sancristobal_banco', path: GENERIC.banco, x: 200, y: 400, scale: 0.07, depth: 2 },
+        ],
+      },
+    ],
+  },
+  "Ciudad Bolívar": {
+    ...DEFAULT_WALK,
+    pathTiles: [
+      { key: 'floor_candelaria_1', path: 'Candelaria/generado/piso_acera.png' },
+      { key: 'floor_candelaria_2', path: 'Candelaria/generado/piso_acera_2.png' },
+      { key: 'floor_candelaria_3', path: 'Candelaria/generado/piso_acera_3.png' },
+    ],
+    screens: [
+      {
+        streetscape: { key: 'streetscape_ciudadbolivar_1', path: 'Ciudad_Bolivar/generado/streetscape_1.png' },
+        npc: { key: 'npc_ciudadbolivar', path: 'Ciudad_Bolivar/generado/npc_espalda.png', x: 540, y: 440 },
+        props: [
+          { key: 'prop_ciudadbolivar_mural', path: 'Ciudad_Bolivar/generado/mural.png', x: 250, y: 370, scale: 0.14, depth: 1 },
+          { key: 'prop_ciudadbolivar_arbusto', path: GENERIC.arbusto2, x: 130, y: 400, scale: 0.08, depth: 2 },
+        ],
+      },
+      {
+        streetscape: { key: 'streetscape_ciudadbolivar_2', path: 'Ciudad_Bolivar/generado/streetscape_2.png' },
+        props: [
+          { key: 'prop_ciudadbolivar_poste', path: GENERIC.posteIso, x: 400, y: 370, scale: 0.13, depth: 1 },
+          { key: 'prop_ciudadbolivar_caneca', path: GENERIC.caneca, x: 600, y: 400, scale: 0.07, depth: 2 },
+        ],
+      },
+      {
+        streetscape: { key: 'streetscape_ciudadbolivar_3', path: 'Ciudad_Bolivar/generado/streetscape_3.png' },
+        busStop: { ...BUS_STOP, x: 500, y: 440 },
+        props: [
+          { key: 'prop_ciudadbolivar_arbol', path: GENERIC.arbol1, x: 180, y: 390, scale: 0.13, depth: 2 },
+        ],
+      },
+    ],
+  },
+  "Puente Aranda": {
+    ...DEFAULT_WALK,
+    pathTiles: [
+      { key: 'floor_suba_1', path: 'Suba/generado/piso_1.png' },
+      { key: 'floor_suba_2', path: 'Suba/generado/piso_2.png' },
+      { key: 'floor_suba_3', path: 'Suba/generado/piso_3.png' },
+    ],
+    screens: [
+      {
+        streetscape: { key: 'streetscape_puentearanda_1', path: 'Puente_Aranda/generado/streetscape_1.png' },
+        npc: { key: 'npc_puentearanda', path: 'Puente_Aranda/generado/npc_espalda.png', x: 540, y: 440 },
+        props: [
+          { key: 'prop_puentearanda_tambores', path: 'Puente_Aranda/generado/tambores.png', x: 250, y: 400, scale: 0.11, depth: 2 },
+          { key: 'prop_puentearanda_senal', path: GENERIC.senalAlto, x: 120, y: 400, scale: 0.07, depth: 1 },
+        ],
+      },
+      {
+        streetscape: { key: 'streetscape_puentearanda_2', path: 'Puente_Aranda/generado/streetscape_2.png' },
+        props: [
+          { key: 'prop_puentearanda_poste', path: GENERIC.posteIso, x: 400, y: 370, scale: 0.13, depth: 1 },
+          { key: 'prop_puentearanda_carro', path: GENERIC.carro, x: 600, y: 400, scale: 0.11, depth: 2 },
+        ],
+      },
+      {
+        streetscape: { key: 'streetscape_puentearanda_3', path: 'Puente_Aranda/generado/streetscape_3.png' },
+        busStop: { ...BUS_STOP, x: 500, y: 440 },
+        props: [
+          { key: 'prop_puentearanda_caneca', path: GENERIC.caneca, x: 200, y: 400, scale: 0.07, depth: 2 },
+        ],
+      },
+    ],
+  },
+  "Usme": {
+    ...DEFAULT_WALK,
+    pathTiles: [
+      { key: 'floor_usme_1', path: 'Usme/generado/piso_1.png' },
+      { key: 'floor_usme_2', path: 'Usme/generado/piso_2.png' },
+      { key: 'floor_usme_3', path: 'Usme/generado/piso_3.png' },
+    ],
+    screens: [
+      {
+        streetscape: { key: 'streetscape_usme_1', path: 'Usme/generado/streetscape_1.png' },
+        npc: { key: 'npc_usme', path: 'Usme/generado/npc_espalda.png', x: 540, y: 440 },
+        props: [
+          { key: 'prop_usme_cerca', path: 'Usme/generado/cerca.png', x: 250, y: 390, scale: 0.13, depth: 1 },
+          { key: 'prop_usme_arbusto', path: GENERIC.arbusto1, x: 130, y: 400, scale: 0.08, depth: 2 },
+        ],
+      },
+      {
+        streetscape: { key: 'streetscape_usme_2', path: 'Usme/generado/streetscape_2.png' },
+        props: [
+          { key: 'prop_usme_arbol', path: GENERIC.arbol2, x: 400, y: 390, scale: 0.13, depth: 2 },
+        ],
+      },
+      {
+        streetscape: { key: 'streetscape_usme_3', path: 'Usme/generado/streetscape_3.png' },
+        busStop: { ...BUS_STOP, x: 500, y: 440 },
+        props: [
+          { key: 'prop_usme_arbusto2', path: GENERIC.arbusto2, x: 200, y: 400, scale: 0.08, depth: 2 },
+        ],
+      },
     ],
   },
 };

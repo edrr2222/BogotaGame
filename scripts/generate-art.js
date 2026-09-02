@@ -73,10 +73,15 @@ async function generateOne(job) {
     });
   }
 
+  const requestBody = { contents: [{ parts: requestParts }] };
+  if (job.aspectRatio) {
+    requestBody.generationConfig = { imageConfig: { aspectRatio: job.aspectRatio } };
+  }
+
   const res = await fetch(`${API_URL}?key=${apiKey}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ contents: [{ parts: requestParts }] }),
+    body: JSON.stringify(requestBody),
   });
 
   const body = await res.json();

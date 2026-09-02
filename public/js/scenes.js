@@ -20,9 +20,13 @@ export class BootScene extends Phaser.Scene {
     });
     Object.values(BACKGROUND_MANIFEST).flat().forEach(b => this.load.image(b.key, assetUrl(b.path)));
     Object.values(WALKABLE_SCENES).forEach(cfg => {
-      this.load.image(cfg.npc.key, assetUrl(cfg.npc.path));
-      if (cfg.floorTile) this.load.image(cfg.floorTile.key, assetUrl(cfg.floorTile.path));
-      cfg.props.forEach(p => this.load.image(p.key, assetUrl(p.path)));
+      (cfg.pathTiles || []).forEach(t => this.load.image(t.key, assetUrl(t.path)));
+      (cfg.screens || [cfg]).forEach(screen => {
+        if (screen.streetscape) this.load.image(screen.streetscape.key, assetUrl(screen.streetscape.path));
+        if (screen.npc) this.load.image(screen.npc.key, assetUrl(screen.npc.path));
+        if (screen.busStop) this.load.image(screen.busStop.key, assetUrl(screen.busStop.path));
+        (screen.props || []).forEach(p => this.load.image(p.key, assetUrl(p.path)));
+      });
     });
   }
 
@@ -169,7 +173,14 @@ export class DialogueScene extends Phaser.Scene {
     this.state = this.game.gState;
     const node = NODE_BY_ID[this.state.currentNodeId];
     const isNight = this.state.momento === 'Noche';
+    const W = this.scale.width;
     this.drawBackground(node, isNight);
+
+    this.add.text(W - 24, 12, 'ESC: volver al mapa', {
+      fontFamily: FONT_MONO, fontSize: '10px', color: isNight ? '#8892b0' : '#6b6455'
+    }).setOrigin(1, 0).setDepth(6);
+
+    this.escKey = this.input.keyboard.addKey('ESC');
 
     this.box = new DialogueBox(this, this.state);
     this.box.open(this.state.currentNodeId, (type) => {
@@ -178,6 +189,10 @@ export class DialogueScene extends Phaser.Scene {
   }
 
   update() {
+    // Salida de emergencia al mapa, igual que en WalkScene — importante
+    // sobre todo para Chapinero/Kennedy, a las que se puede llegar sin
+    // querer por la parada de bus de otra localidad.
+    if (Phaser.Input.Keyboard.JustDown(this.escKey)) { this.scene.start('MapScene'); return; }
     this.box.update();
   }
 
@@ -197,20 +212,30 @@ export class DialogueScene extends Phaser.Scene {
 }
 
 /* ============================================================
-   ESCENA: CAMINAR — localidad como escenario poblado, movimiento
-   con WASD/flechas, NPC fijo que abre la ventana de diálogo por
-   proximidad (ver WALKABLE_SCENES en gameConfig.js).
+   ESCENA: CAMINAR — localidad como secuencia de pantallas conectadas
+   por los bordes (screens[] en WALKABLE_SCENES). La pantalla 0 tiene
+   el NPC que abre el diálogo de "Entrada"; la última tiene la parada
+   de bus/Transmilenio que manda a otra localidad al azar (o a la
+   revelación si ya no queda ninguna).
    ============================================================ */
 export class WalkScene extends Phaser.Scene {
   constructor() { super('WalkScene'); }
 
-  init(data) { this.locality = data.locality; }
+  init(data) {
+    this.locality = data.locality;
+    this.screenIndex = data.screenIndex || 0;
+    this.enterFrom = data.enterFrom || null; // 'left' | 'right' | null (primer ingreso)
+  }
 
   create() {
     this.state = this.game.gState;
     const cfg = this.cfg = WALKABLE_SCENES[this.locality];
+    const screens = cfg.screens || [cfg]; // compat: localidad sin migrar a screens[] todavía
+    this.totalScreens = screens.length;
+    const screen = this.screen = screens[this.screenIndex];
     const isNight = this.state.momento === 'Noche';
     const W = this.scale.width;
+    const b = cfg.bounds;
 
     this.cameras.main.setBackgroundColor(isNight ? cfg.groundColorNight : cfg.groundColorDay);
     this.drawSky(isNight, W);
@@ -221,47 +246,78 @@ export class WalkScene extends Phaser.Scene {
     this.add.text(W - 24, 16, isNight ? 'NOCHE' : 'DÍA', {
       fontFamily: FONT_MONO, fontSize: '12px', color: '#8892b0'
     }).setOrigin(1, 0).setDepth(6);
-    this.add.text(W - 24, 38, 'WASD / flechas: moverse — ESC: volver al mapa', {
+    this.add.text(W - 24, 38,
+      `Pantalla ${this.screenIndex + 1}/${this.totalScreens} — WASD: moverse — ESC: volver al mapa`, {
       fontFamily: FONT_MONO, fontSize: '10px', color: '#8892b0'
     }).setOrigin(1, 0).setDepth(6);
 
-    if (cfg.floorTile && this.textures.exists(cfg.floorTile.key)) {
-      this.add.tileSprite(cfg.bounds.x, cfg.bounds.y + cfg.bounds.h - 60, cfg.bounds.w, 60, cfg.floorTile.key)
-        .setOrigin(0, 0).setDepth(0)
-        .setTileScale(cfg.floorTile.tileScale || 1, cfg.floorTile.tileScale || 1);
-    } else {
-      const shade = isNight ? 0x232853 : 0xc9bd9e;
-      this.add.rectangle(cfg.bounds.x, cfg.bounds.y + cfg.bounds.h - 60, cfg.bounds.w, 60, shade, 0.6)
-        .setOrigin(0, 0).setDepth(0);
+    if (screen.streetscape && this.textures.exists(screen.streetscape.key)) {
+      const bg = this.add.image(0, 0, screen.streetscape.key).setOrigin(0, 0).setDepth(-1);
+      const bgScale = W / bg.width;
+      bg.setDisplaySize(W, bg.height * bgScale);
+      if (isNight) bg.setTint(0x8891c8);
     }
 
-    cfg.props.forEach(p => {
+    this.drawPath(cfg, isNight);
+
+    (screen.props || []).forEach(p => {
       if (!this.textures.exists(p.key)) return;
       this.add.image(p.x, p.y, p.key).setScale(p.scale || 1).setDepth(p.depth || 1);
     });
 
-    this.npc = null;
-    if (this.textures.exists(cfg.npc.key)) {
-      this.npc = this.add.image(cfg.npc.x, cfg.npc.y, cfg.npc.key).setDepth(3);
-      this.fitHeight(this.npc, 70);
+    // Un solo "interactuable" por pantalla: el NPC de diálogo (pantalla 0) o
+    // la parada de bus (última pantalla) — nunca los dos a la vez.
+    this.interactable = null;
+    if (screen.npc && this.textures.exists(screen.npc.key)) {
+      const npc = this.add.image(screen.npc.x, screen.npc.y, screen.npc.key).setDepth(3);
+      this.fitHeight(npc, 70);
+      this.interactable = { obj: npc, promptText: '[ESPACIO] hablar', onTrigger: () => this.talkToNpc() };
+    } else if (screen.busStop && this.textures.exists(screen.busStop.key)) {
+      const bs = this.add.image(screen.busStop.x, screen.busStop.y, screen.busStop.key).setDepth(3);
+      this.fitHeight(bs, 90);
+      this.interactable = { obj: bs, promptText: '[ESPACIO] tomar el bus', onTrigger: () => this.takeBus() };
     }
 
     this.avatar = avatarById(this.state.characterId);
     this.facing = 'front';
     const frontKey = this.avatar?.dirs.front.key;
+    const walkMidY = (cfg.walkY.min + cfg.walkY.max) / 2;
+    let spawnX;
+    if (this.enterFrom === 'left') spawnX = b.x + 40;
+    else if (this.enterFrom === 'right') spawnX = b.x + b.w - 40;
+    else spawnX = (screen.playerSpawn && screen.playerSpawn.x) || b.x + 120;
     this.player = (frontKey && this.textures.exists(frontKey))
-      ? this.add.image(cfg.playerSpawn.x, cfg.playerSpawn.y, frontKey)
-      : this.add.rectangle(cfg.playerSpawn.x, cfg.playerSpawn.y, 26, 50, 0xece7dd);
+      ? this.add.image(spawnX, walkMidY, frontKey)
+      : this.add.rectangle(spawnX, walkMidY, 26, 50, 0xece7dd);
     this.player.setDepth(4);
     if (frontKey && this.textures.exists(frontKey)) this.fitHeight(this.player, 76);
 
-    this.prompt = this.add.text(0, 0, '[ESPACIO] hablar', {
+    this.prompt = this.add.text(0, 0, '', {
       fontFamily: FONT_MONO, fontSize: '12px', color: '#f2a03d'
     }).setOrigin(0.5, 1).setDepth(5).setVisible(false);
 
     this.keys = this.input.keyboard.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,SPACE,ESC');
 
     this.box = new DialogueBox(this, this.state);
+  }
+
+  talkToNpc() {
+    this.box.open(`${this.locality}: Entrada`, (type) => {
+      if (type === 'ending') this.scene.start('EndingScene');
+      // type 'hub': el hilo de diálogo de esta localidad terminó, pero se
+      // sigue caminando en la misma pantalla hacia las siguientes / la
+      // parada de bus, no se vuelve al mapa automáticamente.
+    });
+  }
+
+  takeBus() {
+    const nextLoc = this.state.nextRandomFromPool();
+    if (!nextLoc) { this.scene.start('EndingScene'); return; }
+    if (WALKABLE_SCENES[nextLoc]) {
+      this.scene.start('WalkScene', { locality: nextLoc, screenIndex: 0 });
+    } else {
+      this.scene.start('DialogueScene');
+    }
   }
 
   fitHeight(img, targetH) {
@@ -279,6 +335,27 @@ export class WalkScene extends Phaser.Scene {
     this.facing = dir;
     this.player.setTexture(d.key);
     this.fitHeight(this.player, 76);
+  }
+
+  // Carril caminable real: en vez de una sola baldosa repetida al infinito,
+  // va alternando entre las variantes de acera generadas para que se vea
+  // como una acera real y no una textura clonada.
+  drawPath(cfg, isNight) {
+    const tiles = (cfg.pathTiles || []).filter(t => this.textures.exists(t.key));
+    const y = (cfg.walkY.min + cfg.walkY.max) / 2;
+    if (tiles.length === 0) {
+      const shade = isNight ? 0x232853 : 0xc9bd9e;
+      this.add.rectangle(cfg.bounds.x, cfg.walkY.min, cfg.bounds.w, cfg.walkY.max - cfg.walkY.min, shade, 0.6)
+        .setOrigin(0, 0).setDepth(0);
+      return;
+    }
+    const tileSize = 60;
+    const count = Math.ceil(cfg.bounds.w / tileSize) + 1;
+    for (let i = 0; i < count; i++) {
+      const t = tiles[i % tiles.length];
+      this.add.image(cfg.bounds.x + i * tileSize, y, t.key)
+        .setDisplaySize(tileSize, tileSize).setDepth(0);
+    }
   }
 
   drawSky(isNight, W) {
@@ -330,8 +407,32 @@ export class WalkScene extends Phaser.Scene {
     if (dx !== 0 || dy !== 0) {
       const len = Math.hypot(dx, dy);
       const b = this.cfg.bounds;
-      this.player.x = Phaser.Math.Clamp(this.player.x + (dx / len) * speed, b.x + 20, b.x + b.w - 20);
-      this.player.y = Phaser.Math.Clamp(this.player.y + (dy / len) * speed, b.y + 20, b.y + b.h - 20);
+      const newX = this.player.x + (dx / len) * speed;
+      const newY = this.player.y + (dy / len) * speed;
+
+      // Al llegar al borde de una pantalla que sí continúa hacia otra, se
+      // transiciona en vez de quedar clavado contra el límite — así se
+      // "sigue hasta el borde del mapa y se muestra la continuación".
+      const canGoRight = this.screenIndex < this.totalScreens - 1;
+      const canGoLeft = this.screenIndex > 0;
+      if (canGoRight && newX > b.x + b.w - 15) {
+        this.scene.start('WalkScene', { locality: this.locality, screenIndex: this.screenIndex + 1, enterFrom: 'left' });
+        return;
+      }
+      if (canGoLeft && newX < b.x + 15) {
+        this.scene.start('WalkScene', { locality: this.locality, screenIndex: this.screenIndex - 1, enterFrom: 'right' });
+        return;
+      }
+
+      // El jugador queda confinado al carril de la acera (walkY), no a toda
+      // la escena — así no camina sobre los techos ni flotando en el cielo.
+      // Cuando SÍ hay pantalla siguiente/anterior, no se topa el clamp en
+      // ese lado (si no, el jugador quedaba atrapado un par de píxeles antes
+      // del umbral de transición y este nunca llegaba a dispararse).
+      const minX = canGoLeft ? -100000 : b.x + 20;
+      const maxX = canGoRight ? 100000 : b.x + b.w - 20;
+      this.player.x = Phaser.Math.Clamp(newX, minX, maxX);
+      this.player.y = Phaser.Math.Clamp(newY, this.cfg.walkY.min, this.cfg.walkY.max);
       // Horizontal manda sobre vertical si se presionan a la vez (A/D
       // cambian a la vista de lado, W/S a espalda/frente).
       if (dx < 0) this.setFacing('left');
@@ -340,16 +441,16 @@ export class WalkScene extends Phaser.Scene {
       else this.setFacing('front');
     }
 
-    if (this.npc) {
-      const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.npc.x, this.npc.y);
+    if (this.interactable) {
+      const { obj, promptText, onTrigger } = this.interactable;
+      const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, obj.x, obj.y);
       const inRange = dist < 70;
-      this.prompt.setPosition(this.npc.x, this.npc.y - 55);
+      this.prompt.setText(promptText);
+      this.prompt.setPosition(obj.x, obj.y - 55);
       this.prompt.setVisible(inRange);
       if (inRange && Phaser.Input.Keyboard.JustDown(k.SPACE)) {
         this.prompt.setVisible(false);
-        this.box.open(`${this.locality}: Entrada`, (type) => {
-          this.scene.start(type === 'ending' ? 'EndingScene' : 'MapScene');
-        });
+        onTrigger();
       }
     }
   }

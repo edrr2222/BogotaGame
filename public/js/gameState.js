@@ -30,6 +30,20 @@ export class GameState {
     Object.entries(effObj).forEach(([k, v]) => { this.stats[k] = (this.stats[k] || 0) + v; });
   }
 
+  // Usado por la parada de bus/Transmilenio al final de una localidad: toma
+  // la siguiente localidad ya barajada en $pool (sin dejar que el jugador
+  // elija), la marca visitada y arranca su diálogo — igual que hacía
+  // "Siguiente Localidad" en el twee original. Devuelve null si ya no queda
+  // ninguna localidad por visitar.
+  nextRandomFromPool() {
+    const loc = this.pool.shift();
+    if (!loc) return null;
+    this.momento = Math.random() < 0.5 ? 'Día' : 'Noche';
+    this.visitadas.push(loc);
+    this.currentNodeId = `${loc}: Entrada`;
+    return loc;
+  }
+
   visitedCount() { return this.visitadas.length; }
   total() { return STAT_ORDER.reduce((a, s) => a + this.stats[s], 0); }
 }
