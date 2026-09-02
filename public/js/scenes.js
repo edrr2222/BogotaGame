@@ -281,14 +281,17 @@ export class WalkScene extends Phaser.Scene {
     this.avatar = avatarById(this.state.characterId);
     this.facing = 'front';
     const frontKey = this.avatar?.dirs.front.key;
-    const walkMidY = (cfg.walkY.min + cfg.walkY.max) / 2;
+    // Arranca cerca de la fila de arriba de la franja caminable (junto a los
+    // edificios), no en la mitad de la plaza ancha — así el jugador aparece
+    // donde está el NPC/parada en vez de lejos de ellos.
+    const spawnY = cfg.walkY.min + 30;
     let spawnX;
     if (this.enterFrom === 'left') spawnX = b.x + 40;
     else if (this.enterFrom === 'right') spawnX = b.x + b.w - 40;
     else spawnX = (screen.playerSpawn && screen.playerSpawn.x) || b.x + 120;
     this.player = (frontKey && this.textures.exists(frontKey))
-      ? this.add.image(spawnX, walkMidY, frontKey)
-      : this.add.rectangle(spawnX, walkMidY, 26, 50, 0xece7dd);
+      ? this.add.image(spawnX, spawnY, frontKey)
+      : this.add.rectangle(spawnX, spawnY, 26, 50, 0xece7dd);
     this.player.setDepth(4);
     if (frontKey && this.textures.exists(frontKey)) this.fitHeight(this.player, 76);
 
@@ -342,19 +345,25 @@ export class WalkScene extends Phaser.Scene {
   // como una acera real y no una textura clonada.
   drawPath(cfg, isNight) {
     const tiles = (cfg.pathTiles || []).filter(t => this.textures.exists(t.key));
-    const y = (cfg.walkY.min + cfg.walkY.max) / 2;
+    const bandH = cfg.walkY.max - cfg.walkY.min;
     if (tiles.length === 0) {
       const shade = isNight ? 0x232853 : 0xc9bd9e;
-      this.add.rectangle(cfg.bounds.x, cfg.walkY.min, cfg.bounds.w, cfg.walkY.max - cfg.walkY.min, shade, 0.6)
+      this.add.rectangle(cfg.bounds.x, cfg.walkY.min, cfg.bounds.w, bandH, shade, 0.6)
         .setOrigin(0, 0).setDepth(0);
       return;
     }
+    // Varias filas (no una sola línea) para que la acera/plaza llene toda la
+    // franja caminable en vez de dejar un vacío grande debajo.
     const tileSize = 60;
-    const count = Math.ceil(cfg.bounds.w / tileSize) + 1;
-    for (let i = 0; i < count; i++) {
-      const t = tiles[i % tiles.length];
-      this.add.image(cfg.bounds.x + i * tileSize, y, t.key)
-        .setDisplaySize(tileSize, tileSize).setDepth(0);
+    const cols = Math.ceil(cfg.bounds.w / tileSize) + 1;
+    const rows = Math.max(1, Math.round(bandH / tileSize));
+    for (let r = 0; r < rows; r++) {
+      const y = cfg.walkY.min + (r + 0.5) * (bandH / rows);
+      for (let c = 0; c < cols; c++) {
+        const t = tiles[(r * cols + c) % tiles.length];
+        this.add.image(cfg.bounds.x + c * tileSize, y, t.key)
+          .setDisplaySize(tileSize, bandH / rows + 1).setDepth(0);
+      }
     }
   }
 
@@ -362,17 +371,21 @@ export class WalkScene extends Phaser.Scene {
     const skyH = 190;
     this.add.rectangle(0, 0, W, skyH, isNight ? 0x0b0e24 : 0x8ec9e8, 1).setOrigin(0, 0).setDepth(-2);
 
+    // El sol/luna van en -0.5, POR ENCIMA del streetscape (-1) — los fondos
+    // panorámicos siempre traen su propio cielo de día horneado en la
+    // imagen, así que si esto va detrás nunca se ve (de noche solo se veía
+    // el cielo azul oscurecido, sin luna ni estrellas).
     if (isNight) {
-      this.add.circle(W - 90, 60, 22, 0xf4f0e0, 1).setDepth(-1);
-      this.add.circle(W - 80, 53, 18, 0x0b0e24, 1).setDepth(-1); // "muerde" la luna para dar forma de creciente
+      this.add.circle(W - 90, 60, 22, 0xf4f0e0, 1).setDepth(-0.5);
+      this.add.circle(W - 80, 53, 18, 0x0b0e24, 1).setDepth(-0.5); // "muerde" la luna para dar forma de creciente
       const stars = [[40,30],[90,70],[150,25],[210,55],[260,20],[310,65],[360,35],[420,15],
         [460,60],[510,30],[560,50],[600,20],[30,90],[130,100],[240,95],[350,90],[450,100],[550,95],[620,80],[70,110]];
-      stars.forEach(([sx, sy]) => this.add.circle(sx, sy, 1.5, 0xffffff, 0.9).setDepth(-1));
+      stars.forEach(([sx, sy]) => this.add.circle(sx, sy, 1.5, 0xffffff, 0.9).setDepth(-0.5));
     } else {
-      this.add.circle(W - 90, 55, 30, 0xffe27a, 1).setDepth(-1);
-      this.add.circle(W - 90, 55, 22, 0xfff4c2, 1).setDepth(-1);
+      this.add.circle(W - 90, 55, 30, 0xffe27a, 1).setDepth(-0.5);
+      this.add.circle(W - 90, 55, 22, 0xfff4c2, 1).setDepth(-0.5);
       const cloudAt = (cx, cy) => {
-        const g = this.add.graphics().setDepth(-1);
+        const g = this.add.graphics().setDepth(-0.5);
         g.fillStyle(0xffffff, 0.9);
         g.fillEllipse(cx, cy, 46, 22);
         g.fillEllipse(cx - 22, cy + 4, 30, 16);

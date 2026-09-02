@@ -32,15 +32,37 @@ export function evalEcho(cond, stats) {
   return op === '>' ? v > 0 : v < 0;
 }
 
+// Si un párrafo es largo (varias oraciones), lo parte en trozos cortos por
+// oración — como los globos de una historieta — en vez de una sola burbuja
+// con 4-5 oraciones. Agrupa oraciones seguidas mientras quepan bajo maxLen.
+function splitLong(text, maxLen = 170) {
+  if (text.length <= maxLen) return [text];
+  const sentences = text.match(/[^.!?]+[.!?]+(\s+|$)/g) || [text];
+  const chunks = [];
+  let cur = '';
+  sentences.forEach(s => {
+    if (cur && (cur + s).trim().length > maxLen) {
+      chunks.push(cur.trim());
+      cur = s;
+    } else {
+      cur += s;
+    }
+  });
+  if (cur.trim()) chunks.push(cur.trim());
+  return chunks.length ? chunks : [text];
+}
+
 // Arma las "páginas" de una ventana de diálogo chica para un nodo: en vez de
-// un solo bloque largo, cada pieza (texto base, mood_reaction, reveal,
-// memory_echo) es su propia página que el jugador va pasando.
+// un solo bloque largo, cada PÁRRAFO (y cada oración larga dentro de un
+// párrafo) es su propia página — así la burbuja de diálogo muestra trozos
+// cortos, como en una historieta, en vez de un párrafo largo de una sola vez.
 export function buildPages(node, momento, stats) {
   const pages = [];
 
-  let base = resolveText(node, momento);
-  if (node.extra_raw) base += '\n\n' + node.extra_raw;
-  if (base) pages.push(base);
+  const base = resolveText(node, momento);
+  base.split(/\n\n+/).map(p => p.trim()).filter(Boolean)
+    .forEach(p => splitLong(p).forEach(chunk => pages.push(chunk)));
+  if (node.extra_raw) splitLong(node.extra_raw).forEach(chunk => pages.push(chunk));
 
   if (node.mood_reaction) {
     const cond = evalCondition(node.mood_reaction.condition, stats);

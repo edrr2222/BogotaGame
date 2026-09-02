@@ -107,7 +107,9 @@ export const BACKGROUND_MANIFEST = {};
    Solo 2 localidades por ahora: La Candelaria y Suba.
    ============================================================ */
 const WALK_BOUNDS = { x: 30, y: 90, w: 660, h: 400 };
-const WALK_Y = { min: 410, max: 468 };
+// Franja caminable ancha (no una sola fila angosta) para que la acera/plaza
+// llene la parte de abajo de la pantalla en vez de dejar un vacío grande.
+const WALK_Y = { min: 410, max: 690 };
 const DEFAULT_WALK = { groundColorDay: PALETTE.day2, groundColorNight: PALETTE.night2, bounds: WALK_BOUNDS, walkY: WALK_Y };
 
 // Parada de bus/Transmilenio compartida por las 6 localidades caminables —

@@ -2,12 +2,15 @@ import { NODE_BY_ID } from './storyData.js';
 import { buildPages } from './storyRuntime.js';
 import { FONT_DISPLAY, FONT_BODY, FONT_MONO, PALETTE } from './gameConfig.js';
 
-const BOX_H = 260;
+const BOX_H = 220;
+const MARGIN = 16;
+const RADIUS = 22;
 
-// Ventana de diálogo chica y paginada (RPG clásico), en vez de una página
-// larga de texto. La usan tanto DialogueScene (localidades sin caminar)
-// como WalkScene (localidades caminables), sobre lo que cada una ya haya
-// dibujado de fondo.
+// Ventana de diálogo chica, paginada y con forma de burbuja de cómic (no un
+// panel rectangular a lo RPG viejo) — cada página es un párrafo corto, para
+// que no se sienta pesado estar leyendo. La usan tanto DialogueScene
+// (localidades sin caminar) como WalkScene (localidades caminables), sobre
+// lo que cada una ya haya dibujado de fondo.
 export class DialogueBox {
   constructor(scene, state) {
     this.scene = scene;
@@ -20,23 +23,28 @@ export class DialogueBox {
 
   _build() {
     const W = this.scene.scale.width, H = this.scene.scale.height;
-    this.panelY = H - BOX_H;
+    this.bx = MARGIN;
+    this.by = H - BOX_H;
+    this.bw = W - MARGIN * 2;
+    this.bh = BOX_H - MARGIN;
     this.container = this.scene.add.container(0, 0).setDepth(20);
 
-    this.bg = this.scene.add.rectangle(0, this.panelY, W, BOX_H, PALETTE.panelNight, 0.95).setOrigin(0, 0);
+    this.bg = this.scene.add.graphics();
+    this._drawBubble();
+    this.bg.setInteractive(new Phaser.Geom.Rectangle(this.bx, this.by, this.bw, this.bh), Phaser.Geom.Rectangle.Contains);
     this.bg.on('pointerdown', () => this.advance());
 
-    this.nameText = this.scene.add.text(24, this.panelY + 14, '', {
-      fontFamily: FONT_DISPLAY, fontSize: '18px', color: '#f2a03d'
+    this.nameText = this.scene.add.text(this.bx + 22, this.by + 16, '', {
+      fontFamily: FONT_DISPLAY, fontSize: '17px', color: '#f2a03d'
     });
-    this.tagText = this.scene.add.text(W - 24, this.panelY + 14, '', {
-      fontFamily: FONT_MONO, fontSize: '12px', color: '#8892b0'
+    this.tagText = this.scene.add.text(this.bx + this.bw - 20, this.by + 16, '', {
+      fontFamily: FONT_MONO, fontSize: '11px', color: '#8892b0'
     }).setOrigin(1, 0);
-    this.bodyText = this.scene.add.text(24, this.panelY + 46, '', {
+    this.bodyText = this.scene.add.text(this.bx + 22, this.by + 46, '', {
       fontFamily: FONT_BODY, fontSize: '15px', color: '#ece7dd',
-      wordWrap: { width: W - 48 }, lineSpacing: 5
+      wordWrap: { width: this.bw - 44 }, lineSpacing: 5
     });
-    this.hintText = this.scene.add.text(W - 24, H - 14, '', {
+    this.hintText = this.scene.add.text(this.bx + this.bw - 20, this.by + this.bh - 12, '', {
       fontFamily: FONT_MONO, fontSize: '11px', color: '#8892b0'
     }).setOrigin(1, 1);
 
@@ -46,10 +54,28 @@ export class DialogueBox {
     this.setVisible(false);
   }
 
+  // Panel redondeado con una colita apuntando hacia arriba, como una
+  // burbuja de historieta — reemplaza el rectángulo duro de antes.
+  _drawBubble() {
+    const { bx, by, bw, bh } = this;
+    this.bg.clear();
+    this.bg.fillStyle(PALETTE.panelNight, 0.95);
+    this.bg.fillRoundedRect(bx, by, bw, bh, RADIUS);
+    this.bg.fillTriangle(bx + 30, by + 1, bx + 54, by + 1, bx + 34, by - 14);
+    this.bg.lineStyle(2, 0xf2a03d, 0.55);
+    this.bg.strokeRoundedRect(bx, by, bw, bh, RADIUS);
+    this.bg.beginPath();
+    this.bg.moveTo(bx + 30, by + 1);
+    this.bg.lineTo(bx + 34, by - 14);
+    this.bg.lineTo(bx + 54, by + 1);
+    this.bg.strokePath();
+  }
+
   setVisible(v) {
     this.visible = v;
     this.container.setVisible(v);
-    if (v) this.bg.setInteractive(); else this.bg.disableInteractive();
+    if (v) this.bg.setInteractive(new Phaser.Geom.Rectangle(this.bx, this.by, this.bw, this.bh), Phaser.Geom.Rectangle.Contains);
+    else this.bg.disableInteractive();
   }
 
   isOpen() { return this.visible; }
@@ -101,21 +127,21 @@ export class DialogueBox {
 
     this.hintText.setText('');
     // Las opciones arrancan justo debajo del texto real (no ancladas al
-    // fondo del panel a ciegas), para no pisar párrafos largos como el de
-    // "Chapinero: Entrada" (texto base + extra_raw en una sola página).
+    // fondo del panel a ciegas), sin pasarse del borde de abajo de la
+    // burbuja aunque el párrafo sea un poco más largo de lo normal.
     const bodyBottom = this.bodyText.y + this.bodyText.height;
-    const maxY = this.scene.scale.height - 24 - (choices.length - 1) * 28;
-    let y = Math.min(bodyBottom + 18, maxY);
+    const maxY = this.by + this.bh - 20 - (choices.length - 1) * 26;
+    let y = Math.min(bodyBottom + 14, maxY);
     choices.forEach((c) => {
-      const btn = this.scene.add.text(24, y, '→ ' + c.text, {
-        fontFamily: FONT_DISPLAY, fontSize: '16px', color: '#4fd1c5'
+      const btn = this.scene.add.text(this.bx + 22, y, '→ ' + c.text, {
+        fontFamily: FONT_DISPLAY, fontSize: '15px', color: '#4fd1c5'
       }).setInteractive({ useHandCursor: true });
       btn.on('pointerover', () => btn.setColor('#f2a03d'));
       btn.on('pointerout', () => btn.setColor('#4fd1c5'));
       btn.on('pointerdown', () => this._choose(node, c));
       this.container.add(btn);
       this.choiceButtons.push(btn);
-      y += 28;
+      y += 26;
     });
   }
 
