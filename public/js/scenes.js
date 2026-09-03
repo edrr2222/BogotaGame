@@ -320,6 +320,7 @@ export class StreetViewScene extends Phaser.Scene {
       ? this.add.image(50, this.scale.height - 190, COMPANION.key).setDepth(6)
       : null;
     if (this.companion) this.fitHeight(this.companion, 70);
+    this.updateCompanionTint();
 
     // Globo de comentario espontáneo de la entidad, cerca del compañero —
     // aparece cuando el jugador se queda quieto mirando algo (ver
@@ -407,6 +408,19 @@ export class StreetViewScene extends Phaser.Scene {
     img.setDisplaySize(img.width * scale, targetH);
   }
 
+  // La entidad todavía no tiene formas distintas generadas (ver COMPANION
+  // en gameConfig.js) — mientras tanto, se tiñe con el mismo criterio que
+  // ya usa el polígono del mapa/la revelación (MapScene.drawEntity,
+  // EndingScene): cálido si las respuestas acumuladas van "amable", frío
+  // si van "áspero", neutro si están mezcladas — así al menos responde
+  // visualmente a cómo se va caracterizando, sin gastar en arte nuevo.
+  updateCompanionTint() {
+    if (!this.companion) return;
+    const total = this.state.total();
+    const color = total > 0 ? PALETTE.accentCool : (total < 0 ? PALETTE.accentRust : 0xffffff);
+    this.companion.setTint(color);
+  }
+
   // Busca el panorama real más cercano a `point` (lat/lng) y salta ahí —
   // usado tanto para entrar por primera vez a la localidad como para el
   // fast-travel de "viajar" entre puntos de interés.
@@ -482,6 +496,9 @@ export class StreetViewScene extends Phaser.Scene {
       else if (type === 'hub') this.storyDone = true;
       // type 'checkpoint': la conversación se pausa acá — se retoma en
       // cualquier punto de interés más adelante, no hace falta nada más.
+      // Las stats pudieron cambiar con la elección que se acaba de hacer
+      // — refleja eso en el color de la entidad.
+      this.updateCompanionTint();
       // Reinicia el reloj de quietud: si no, el comentario espontáneo
       // podría dispararse de inmediato al cerrar (la vista no se movió
       // mientras el diálogo estaba abierto).
