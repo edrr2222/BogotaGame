@@ -21,8 +21,12 @@ export class GameState {
     this.momento = null;
     this.currentNodeId = "Inicio";
     this.playerName = '';
-    this.characterId = null;
     this.runSaved = false;
+    // Puntos de interés donde "viajar" ya te mandó (o donde arrancaste)
+    // en TODA la sesión, con clave "<localidad>|<etiqueta del punto>" —
+    // para que el fast-travel entre puntos de una misma localidad no
+    // repita un sitio al que ya fuiste. Ver StreetViewScene.viajar().
+    this.viajarHistory = new Set();
   }
 
   applyEffects(effObj) {

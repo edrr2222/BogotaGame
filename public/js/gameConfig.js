@@ -47,45 +47,6 @@ export const TRAITS = {
    real no cargó — ver STREETVIEW_POINTS más abajo).
    ============================================================ */
 
-// Avatares seleccionables al personalizar el personaje. `avatarEntry` sigue
-// generando las 4 vistas (frente/espalda/izquierda/derecha, ver
-// scripts/art-jobs.js) aunque solo `front` se usa hoy — el resto quedó del
-// sistema de caminata con sprites direccionales (WASD), reemplazado por
-// Street View real (ver STREETVIEW_POINTS/StreetViewScene). `id` identifica
-// al avatar; cada dirección tiene su propio texture key para precargar.
-function avatarEntry(id, label, base) {
-  return {
-    id, label,
-    dirs: {
-      front: { key: `av_${id}_front`, path: `${base}.png` },
-      back:  { key: `av_${id}_back`,  path: `${base}_back.png` },
-      left:  { key: `av_${id}_left`,  path: `${base}_left.png` },
-      right: { key: `av_${id}_right`, path: `${base}_right.png` },
-    },
-  };
-}
-
-export const AVATAR_MANIFEST = [
-  avatarEntry('candelaria_frente', 'La Candelaria', 'Candelaria/generado/avatar_joven'),
-  avatarEntry('ciudadbolivar_nina', 'Ciudad Bolívar', 'Ciudad_Bolivar/generado/avatar_nina'),
-  avatarEntry('ciudadbolivar_senora', 'Ciudad Bolívar', 'Ciudad_Bolivar/generado/avatar_senora'),
-  avatarEntry('puentearanda_1', 'Puente Aranda', 'Puente_Aranda/generado/avatar_1'),
-  avatarEntry('puentearanda_2', 'Puente Aranda', 'Puente_Aranda/generado/avatar_2'),
-  avatarEntry('puentearanda_3', 'Puente Aranda', 'Puente_Aranda/generado/avatar_3'),
-  avatarEntry('sancristobal_1', 'San Cristóbal', 'SanCristobal/generado/avatar_1'),
-  avatarEntry('sancristobal_3', 'San Cristóbal', 'SanCristobal/generado/avatar_3'),
-  avatarEntry('sancristobal_6', 'San Cristóbal', 'SanCristobal/generado/avatar_6'),
-  avatarEntry('sancristobal_9', 'San Cristóbal', 'SanCristobal/generado/avatar_9'),
-  avatarEntry('suba_frente', 'Suba', 'Suba/generado/avatar_frente'),
-  avatarEntry('usme_1', 'Usme', 'Usme/generado/avatar_1'),
-  avatarEntry('usme_3', 'Usme', 'Usme/generado/avatar_3'),
-  avatarEntry('usme_5', 'Usme', 'Usme/generado/avatar_5'),
-];
-
-export function avatarById(id) {
-  return AVATAR_MANIFEST.find(a => a.id === id) || null;
-}
-
 // Fondos por localidad para DialogueScene: capas dibujadas de atrás hacia
 // adelante detrás del panel de texto. DialogueScene solo se usa como
 // respaldo si Street View real (StreetViewScene) no pudo cargar — sin key
@@ -100,7 +61,11 @@ export const BACKGROUND_MANIFEST = {};
 export const UI_ICONS = {
   viajar: { key: 'icon_viajar', path: 'Compartido/generado/parada_bus.png' },
 };
-export const COMPANION = { key: 'companion_amigo', path: 'Candelaria/generado/npc_espalda.png' };
+// La entidad — forma neutra/sin definir por ahora (assets/entity.png);
+// más adelante se setea para que tome formas distintas según cómo haya
+// quedado caracterizada por las respuestas del jugador (ver
+// GameState.stats / entityPolygonPoints).
+export const COMPANION = { key: 'companion_entity', path: 'entity.png' };
 
 /* ============================================================
    STREET VIEW REAL — el jugador explora las calles reales de la

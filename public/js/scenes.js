@@ -2,24 +2,19 @@ import { NODE_BY_ID } from './storyData.js';
 import {
   PALETTE, FONT_DISPLAY, FONT_BODY, FONT_MONO,
   STAT_ORDER, LOCATIONS, STAT_BY_LOCATION, TRAITS,
-  AVATAR_MANIFEST, BACKGROUND_MANIFEST, STREETVIEW_POINTS, UI_ICONS, COMPANION, assetUrl, avatarById,
+  BACKGROUND_MANIFEST, STREETVIEW_POINTS, UI_ICONS, COMPANION, assetUrl,
 } from './gameConfig.js';
 import { entityPolygonPoints } from './gameState.js';
 import { DialogueBox } from './dialogueBox.js';
 
 /* ============================================================
    ESCENA: BOOT — precarga assets + título + arranca el overlay
-   de configuración (nombre + avatar) antes de entrar al mapa.
+   de configuración (nombre) antes de entrar al mapa.
    ============================================================ */
 export class BootScene extends Phaser.Scene {
   constructor() { super('BootScene'); }
 
   preload() {
-    // Solo la vista de frente: era la única realmente usada fuera del
-    // sistema caminable con sprites direccionales (WalkScene), que se
-    // reemplazó por Street View real (StreetViewScene) — cargar
-    // back/left/right acá ya no tiene para qué.
-    AVATAR_MANIFEST.forEach(a => this.load.image(a.dirs.front.key, assetUrl(a.dirs.front.path)));
     Object.values(BACKGROUND_MANIFEST).flat().forEach(b => this.load.image(b.key, assetUrl(b.path)));
     Object.values(UI_ICONS).forEach(icon => this.load.image(icon.key, assetUrl(icon.path)));
     this.load.image(COMPANION.key, assetUrl(COMPANION.path));
@@ -41,9 +36,8 @@ export class BootScene extends Phaser.Scene {
     start.on('pointerover', () => start.setColor('#4fd1c5'));
     start.on('pointerout', () => start.setColor('#f2a03d'));
     start.on('pointerdown', () => {
-      window.showSetupOverlay(({ playerName, characterId }) => {
+      window.showSetupOverlay(({ playerName }) => {
         this.game.gState.playerName = playerName;
-        this.game.gState.characterId = characterId;
         this.scene.start('MapScene');
       });
     });
@@ -64,11 +58,7 @@ export class MapScene extends Phaser.Scene {
       fontFamily: FONT_DISPLAY, fontSize: '22px', color: '#ece7dd', letterSpacing: 2
     }).setOrigin(0.5);
 
-    const avatar = avatarById(this.state.characterId);
-    if (avatar && this.textures.exists(avatar.dirs.front.key)) {
-      this.add.image(30, 30, avatar.dirs.front.key).setOrigin(0, 0).setDisplaySize(28, 28);
-    }
-    this.add.text(64, 24, this.state.playerName || 'Caminante', {
+    this.add.text(24, 24, this.state.playerName || 'Caminante', {
       fontFamily: FONT_MONO, fontSize: '13px', color: '#f2a03d'
     }).setOrigin(0, 0.5);
 
@@ -264,7 +254,7 @@ export class StreetViewScene extends Phaser.Scene {
       fontFamily: FONT_DISPLAY, fontSize: '20px', color: isNight ? '#f2a03d' : '#c1440e'
     }).setDepth(6).setShadow(0, 0, '#0e1024', 6, false, true);
     this.add.text(W - 24, 16,
-      'Arrastra: mirar alrededor — el diálogo se abre solo al acercarte — T: viajar — ESC: volver al mapa', {
+      'Arrastra: mirar alrededor — el diálogo se abre solo al acercarte — T: viajar — U: finalizar — ESC: volver al mapa', {
       fontFamily: FONT_MONO, fontSize: '10px', color: '#ece7dd'
     }).setOrigin(1, 0).setDepth(6).setShadow(0, 0, '#0e1024', 6, false, true);
 
@@ -308,6 +298,21 @@ export class StreetViewScene extends Phaser.Scene {
     }).setOrigin(0.5);
     this.viajarBtn.add(viajarLabel);
 
+    // "Finalizar" — mismo trato que "viajar" (ícono fijo, solo aviso, se
+    // activa con teclado no con mouse) pero termina el recorrido ahí
+    // mismo y muestra cómo quedó caracterizada la entidad con las
+    // respuestas dadas hasta ahora (EndingScene), sin tener que volver al
+    // mapa primero.
+    this.finalizarBtn = this.add.container(this.scale.width - 56, this.scale.height - 132).setDepth(6);
+    const finBg = this.add.circle(0, 0, 30, 0x14162b, 0.85).setStrokeStyle(2, 0x4fd1c5, 0.9);
+    this.finalizarBtn.add(finBg);
+    const finIcon = this.add.text(0, 0, '◆', { fontFamily: FONT_DISPLAY, fontSize: '22px', color: '#4fd1c5' }).setOrigin(0.5);
+    this.finalizarBtn.add(finIcon);
+    const finLabel = this.add.text(0, 36, '[U] finalizar', {
+      fontFamily: FONT_MONO, fontSize: '10px', color: '#4fd1c5'
+    }).setOrigin(0.5);
+    this.finalizarBtn.add(finLabel);
+
     // Compañero fijo, siempre en pantalla mientras se explora (se oculta
     // detrás de la ventana de diálogo cuando está abierta) — da la
     // sensación de ir acompañado en vez de solo mirando un visor de fotos.
@@ -329,7 +334,7 @@ export class StreetViewScene extends Phaser.Scene {
       padding: { x: 12, y: 8 }
     }).setOrigin(0.5).setDepth(6);
 
-    this.keys = this.input.keyboard.addKeys('SPACE,ESC,T');
+    this.keys = this.input.keyboard.addKeys('SPACE,ESC,T,U');
     this.box = new DialogueBox(this, this.state);
     this.currentPos = null;
     this.nearestPoi = null; // poi de `points.pois` en rango de "hablar", si hay
@@ -383,6 +388,7 @@ export class StreetViewScene extends Phaser.Scene {
     });
     this.povListener = this.panorama.addListener('pov_changed', () => this._onGazeMoved());
 
+    this.state.viajarHistory.add(`${this.locality}|${points.pois[0].label}`);
     this.seekTo(points.pois[0]);
   }
 
@@ -508,12 +514,18 @@ export class StreetViewScene extends Phaser.Scene {
       .catch(() => { this._gazeFetching = false; });
   }
 
+  poiKey(poi) { return `${this.locality}|${poi.label}`; }
+
   viajar() {
     if (!this.storyDone) {
-      // Fast-travel a otro punto de interés de la MISMA localidad —
-      // evita tener que arrastrar Street View a mano hasta encontrarlo.
-      const others = this.points.pois.filter(p => p !== this.nearestPoi);
-      const target = others[Math.floor(Math.random() * others.length)] || this.points.pois[0];
+      // Fast-travel a otro punto de interés de la MISMA localidad — pero
+      // no a uno al que "viajar" (o el punto de arranque) ya te mandó en
+      // esta sesión, para no repetir sitios. Si ya se visitaron todos,
+      // recién ahí se permite repetir (no hay a dónde más ir).
+      const unvisited = this.points.pois.filter(p => !this.state.viajarHistory.has(this.poiKey(p)));
+      const pool = unvisited.length > 0 ? unvisited : this.points.pois;
+      const target = pool[Math.floor(Math.random() * pool.length)];
+      this.state.viajarHistory.add(this.poiKey(target));
       this.seekTo(target);
       return;
     }
@@ -522,17 +534,26 @@ export class StreetViewScene extends Phaser.Scene {
     this.scene.start('StreetViewScene', { locality: nextLoc });
   }
 
+  // Termina el recorrido ahí mismo, sin tener que volver al mapa primero
+  // — EndingScene ya muestra cómo quedó caracterizada la entidad con las
+  // respuestas dadas hasta ahora (el polígono + los rasgos por stat).
+  finalizar() {
+    this.scene.start('EndingScene');
+  }
+
   update() {
     if (this.box.isOpen()) {
       this.game.canvas.style.pointerEvents = 'auto';
       if (this.companion) this.companion.setVisible(false);
       this.viajarBtn.setVisible(false);
+      this.finalizarBtn.setVisible(false);
       this.box.update();
       return;
     }
     this.game.canvas.style.pointerEvents = 'none';
     if (this.companion) this.companion.setVisible(true);
     this.viajarBtn.setVisible(true);
+    this.finalizarBtn.setVisible(true);
 
     if (Phaser.Input.Keyboard.JustDown(this.keys.ESC)) { this.scene.start('MapScene'); return; }
 
@@ -551,6 +572,7 @@ export class StreetViewScene extends Phaser.Scene {
     // Street View a mano no es realista. El botón de abajo a la derecha
     // (y la tecla T) siempre están disponibles.
     if (Phaser.Input.Keyboard.JustDown(this.keys.T)) this.viajar();
+    if (Phaser.Input.Keyboard.JustDown(this.keys.U)) this.finalizar();
   }
 
   shutdown() {
@@ -629,7 +651,6 @@ export class EndingScene extends Phaser.Scene {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           playerName: this.state.playerName,
-          characterId: this.state.characterId,
           stats: this.state.stats,
           visitadas: this.state.visitadas,
         }),
