@@ -410,27 +410,19 @@ export class StreetViewScene extends Phaser.Scene {
     img.setDisplaySize(img.width * scale, targetH);
   }
 
-  // Sonido de ambiente en loop para esta localidad, si existe. Se carga
-  // por fuera de preload() (no todas las localidades van a tener uno
-  // necesariamente) — assets/sound/<Localidad>/ambiente.mp3. Si el
-  // archivo no existe, falla en silencio y el juego sigue igual, sin
-  // sonido; no bloquea nada.
+  // Sonido de ambiente en loop para esta localidad, si existe —
+  // assets/sound/<Localidad>/ambiente.mp3. Usa un <audio> nativo del
+  // navegador en vez del loader de Phaser (más simple, y evita que la
+  // tabla interna de códecs de Phaser rechace un formato antes de
+  // intentar cargarlo). Si el archivo no existe o no se puede
+  // reproducir, falla en silencio — el juego sigue igual sin sonido.
   playAmbientSound() {
-    const key = `ambiente_${this.locality}`;
-    if (this.cache.audio.exists(key)) {
-      this.ambientSound = this.sound.add(key, { loop: true, volume: 0.4 });
-      this.ambientSound.play();
-      return;
-    }
-    this.load.audio(key, assetUrl(`sound/${this.locality}/ambiente.mp3`));
-    this.load.once(`filecomplete-audio-${key}`, () => {
-      // La escena pudo haber cambiado mientras cargaba (ESC/viajar rápido)
-      if (!this.scene.isActive()) return;
-      this.ambientSound = this.sound.add(key, { loop: true, volume: 0.4 });
-      this.ambientSound.play();
-    });
-    this.load.once('loaderror', () => {}); // sin ambiente.mp3 todavía: no pasa nada
-    this.load.start();
+    const audio = new Audio(assetUrl(`sound/${this.locality}/ambiente.mp3`));
+    audio.loop = true;
+    audio.volume = 0.4;
+    audio.addEventListener('error', () => {}); // sin archivo todavía: no pasa nada
+    audio.play().catch(() => {}); // autoplay bloqueado u otro error: no pasa nada
+    this.ambientSound = audio;
   }
 
   // La entidad todavía no tiene formas distintas generadas (ver COMPANION
@@ -620,7 +612,7 @@ export class StreetViewScene extends Phaser.Scene {
   shutdown() {
     if (this.posListener) this.posListener.remove();
     if (this.povListener) this.povListener.remove();
-    if (this.ambientSound) this.ambientSound.stop();
+    if (this.ambientSound) { this.ambientSound.pause(); this.ambientSound.src = ''; }
     const container = getStreetViewContainer();
     if (container) container.style.display = 'none';
     // Se restaura a 'auto' (no 'none'): las demás escenas (MapScene,
