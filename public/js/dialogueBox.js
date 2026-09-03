@@ -1,5 +1,5 @@
 import { NODE_BY_ID } from './storyData.js';
-import { buildPages } from './storyRuntime.js';
+import { buildPages, isConvergenceNode } from './storyRuntime.js';
 import { FONT_DISPLAY, FONT_BODY, FONT_MONO, PALETTE } from './gameConfig.js';
 
 const BOX_H = 220;
@@ -88,10 +88,22 @@ export class DialogueBox {
   }
 
   // nodeId: nodo de arranque. onDone(type) se llama cuando la conversación
-  // termina: type 'hub' -> volver al mapa; 'ending' -> ir a la revelación.
-  open(nodeId, onDone) {
+  // termina o se pausa: 'hub' -> localidad terminada; 'ending' -> ir a la
+  // revelación; 'checkpoint' -> se pausó en un nodo de convergencia, se
+  // retoma después. `placeLabel`: nombre del punto real donde se abrió
+  // (ej. "Plaza de Bolívar") — se muestra junto al nombre de la localidad
+  // para que el diálogo se sienta anclado al lugar concreto, no genérico.
+  open(nodeId, onDone, placeLabel) {
     this._onDone = onDone;
+    this._placeLabel = placeLabel || null;
     this.state.currentNodeId = nodeId;
+    // Si el nodo de arranque YA es un nodo de cierre (hub/ending) — puede
+    // pasar si algo vuelve a llamar a open() sobre una localidad cuya
+    // historia ya terminó — no hay nada que renderizar: se resuelve de
+    // una, como haría _advanceToCurrent() con cualquier otro nodo así.
+    const node = NODE_BY_ID[nodeId];
+    if (node && node.type === 'hub') { this._finish('hub'); return; }
+    if (node && (node.type === 'ending' || nodeId === 'Revelación final')) { this._finish('ending'); return; }
     this._loadNode();
     this.setVisible(true);
   }
@@ -107,7 +119,8 @@ export class DialogueBox {
 
   _renderPage() {
     const node = this.node;
-    this.nameText.setText(node.location ? node.location.toUpperCase() : 'BOGOTÁ');
+    const place = node.location ? node.location.toUpperCase() : 'BOGOTÁ';
+    this.nameText.setText(this._placeLabel ? `${place} — ${this._placeLabel}` : place);
     this.tagText.setText(this.state.momento ? this.state.momento.toUpperCase() : '');
     this.bodyText.setText(this.pages[this.pageIndex]);
     this._clearChoices();
@@ -176,6 +189,14 @@ export class DialogueBox {
       this._finish('hub');
     } else if (next && (next.type === 'ending' || this.state.currentNodeId === 'Revelación final')) {
       this._finish('ending');
+    } else if (next && isConvergenceNode(this.state.currentNodeId)) {
+      // Nodo de convergencia (2+ caminos llevan acá): pausa la
+      // conversación acá en vez de seguir de largo — el jugador la
+      // retoma exactamente donde quedó (state.currentNodeId ya apunta
+      // acá) desde cualquier punto de interés físico, más adelante. Así
+      // una sesión de diálogo dura 1-2 nodos, no los 6 de la localidad
+      // entera de una sentada.
+      this._finish('checkpoint');
     } else {
       this._loadNode();
     }

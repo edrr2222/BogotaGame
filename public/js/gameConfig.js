@@ -94,63 +94,80 @@ export function avatarById(id) {
 export const BACKGROUND_MANIFEST = {};
 
 /* ============================================================
-   STREET VIEW REAL — reemplaza el escenario pixel-art caminado con
-   WASD por Google Street View de verdad: el jugador explora las calles
-   reales de la localidad (arrastra/usa las flechas del propio visor de
-   Google), y se dispara diálogo/parada de bus al acercarse a un punto
-   real específico (`talk`/`bus`), no por proximidad a un sprite dibujado.
-   Cubre las 8 localidades por igual — ya no depende de tener arte
-   generado, así que resuelve el problema de localidades "sin configurar".
+   STREET VIEW REAL — el jugador explora las calles reales de la
+   localidad (arrastra/usa las flechas del propio visor de Google), y la
+   historia (STORY_NODES) se reparte en varios puntos físicos reales en
+   vez de leerse toda de una sentada: cada localidad tiene 2+ `pois`
+   (puntos de interés) donde "[ESPACIO] hablar" continúa la conversación
+   desde donde haya quedado — DialogueBox para de avanzar sola apenas
+   llega a un nodo de convergencia (ver `stopAtCheckpoint` en
+   dialogueBox.js), así que una sesión de diálogo dura 1-2 nodos, no los
+   6 de la localidad completa. Aparte, `viajar` es el punto de transporte:
+   si la historia de esta localidad no ha terminado, salta a otro `poi`
+   de la MISMA localidad (para no tener que navegar Street View a mano
+   hasta encontrarlo); si ya terminó, salta a otra localidad al azar
+   (antes lo hacía siempre "tomar el bus").
 
-   `entry`: coordenada semilla para buscar el panorama más cercano
-   (StreetViewService busca cobertura real en un radio alrededor).
-   `talk`/`bus`: coordenada real (plaza, esquina, estación) donde se
-   activa el disparador correspondiente al acercarse navegando.
-
-   Coordenadas de mejor esfuerzo (plazas/estaciones reales conocidas,
-   verificadas por búsqueda donde fue posible) — si alguna cae en un
+   Coordenadas de mejor esfuerzo (plazas/lugares reales conocidos,
+   verificados por búsqueda donde fue posible) — si alguna cae en un
    punto raro o sin cobertura de Street View, es cuestión de ajustar el
    par lat/lng, no de tocar código.
    ============================================================ */
 export const STREETVIEW_POINTS = {
   "La Candelaria": {
-    entry: { lat: 4.598056, lng: -74.075833 }, // Plaza de Bolívar
-    talk: { lat: 4.598056, lng: -74.075833, label: 'Plaza de Bolívar' },
-    bus: { lat: 4.601400, lng: -74.065700, label: 'Estación Las Aguas' },
+    pois: [
+      { lat: 4.598056, lng: -74.075833, label: 'Plaza de Bolívar' },
+      { lat: 4.596400, lng: -74.072100, label: 'Chorro de Quevedo' },
+    ],
+    viajar: { lat: 4.601400, lng: -74.065700, label: 'Estación Las Aguas' },
   },
   "Suba": {
-    entry: { lat: 4.741017, lng: -74.083842 }, // Plaza Fundacional de Suba
-    talk: { lat: 4.741017, lng: -74.083842, label: 'Plaza Fundacional de Suba' },
-    bus: { lat: 4.741800, lng: -74.079600, label: 'Portal Suba' },
+    pois: [
+      { lat: 4.741017, lng: -74.083842, label: 'Plaza Fundacional de Suba' },
+      { lat: 4.744500, lng: -74.080000, label: 'Rincón de Suba' },
+    ],
+    viajar: { lat: 4.741800, lng: -74.079600, label: 'Portal Suba' },
   },
   "San Cristóbal": {
-    entry: { lat: 4.564500, lng: -74.096900 }, // Portal 20 de Julio / iglesia 20 de Julio
-    talk: { lat: 4.564500, lng: -74.096900, label: '20 de Julio' },
-    bus: { lat: 4.565000, lng: -74.096940, label: 'Portal 20 de Julio' },
+    pois: [
+      { lat: 4.564500, lng: -74.096900, label: '20 de Julio' },
+      { lat: 4.574325, lng: -74.076415, label: 'Vitelma' },
+    ],
+    viajar: { lat: 4.565000, lng: -74.096940, label: 'Portal 20 de Julio' },
   },
   "Ciudad Bolívar": {
-    entry: { lat: 4.573000, lng: -74.156000 }, // Candelaria La Nueva
-    talk: { lat: 4.573000, lng: -74.156000, label: 'Candelaria La Nueva' },
-    bus: { lat: 4.569980, lng: -74.140040, label: 'Portal Tunal' },
+    pois: [
+      { lat: 4.573000, lng: -74.156000, label: 'Candelaria La Nueva' },
+      { lat: 4.566200, lng: -74.161506, label: 'Arborizadora Alta' },
+    ],
+    viajar: { lat: 4.569980, lng: -74.140040, label: 'Portal Tunal' },
   },
   "Puente Aranda": {
-    entry: { lat: 4.618300, lng: -74.107500 }, // Parque Puente Aranda
-    talk: { lat: 4.618300, lng: -74.107500, label: 'Parque Puente Aranda' },
-    bus: { lat: 4.624700, lng: -74.101300, label: 'Estación Puente Aranda' },
+    pois: [
+      { lat: 4.618300, lng: -74.107500, label: 'Parque Puente Aranda' },
+      { lat: 4.612500, lng: -74.106670, label: 'Puente Aranda centro' },
+    ],
+    viajar: { lat: 4.624700, lng: -74.101300, label: 'Estación Puente Aranda' },
   },
   "Usme": {
-    entry: { lat: 4.477600, lng: -74.126500 }, // Plaza Fundacional de Usme
-    talk: { lat: 4.477600, lng: -74.126500, label: 'Plaza Fundacional de Usme' },
-    bus: { lat: 4.473056, lng: -74.116111, label: 'Portal Usme' },
+    pois: [
+      { lat: 4.477600, lng: -74.126500, label: 'Plaza Fundacional de Usme' },
+      { lat: 4.481000, lng: -74.122000, label: 'Usme centro poblado' },
+    ],
+    viajar: { lat: 4.473056, lng: -74.116111, label: 'Portal Usme' },
   },
   "Chapinero": {
-    entry: { lat: 4.645428, lng: -74.061954 }, // Parque de los Hippies (Cl 60 #7-49) — coordenada verificada
-    talk: { lat: 4.645428, lng: -74.061954, label: 'Parque de los Hippies' },
-    bus: { lat: 4.657200, lng: -74.062800, label: 'Estación Chapinero' },
+    pois: [
+      { lat: 4.645428, lng: -74.061954, label: 'Parque de los Hippies' },
+      { lat: 4.666800, lng: -74.054600, label: 'Zona T' },
+    ],
+    viajar: { lat: 4.657200, lng: -74.062800, label: 'Estación Chapinero' },
   },
   "Kennedy": {
-    entry: { lat: 4.611067, lng: -74.175698 }, // Parque Metropolitano Timiza — coordenada verificada
-    talk: { lat: 4.611067, lng: -74.175698, label: 'Parque Timiza' },
-    bus: { lat: 4.625500, lng: -74.153200, label: 'Estación Banderas' },
+    pois: [
+      { lat: 4.611067, lng: -74.175698, label: 'Parque Timiza' },
+      { lat: 4.628000, lng: -74.166000, label: 'Biblioteca El Tintal' },
+    ],
+    viajar: { lat: 4.625500, lng: -74.153200, label: 'Estación Banderas' },
   },
 };

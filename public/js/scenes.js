@@ -259,7 +259,7 @@ export class StreetViewScene extends Phaser.Scene {
       fontFamily: FONT_DISPLAY, fontSize: '20px', color: isNight ? '#f2a03d' : '#c1440e'
     }).setDepth(6).setShadow(0, 0, '#0e1024', 6, false, true);
     this.add.text(W - 24, 16,
-      'Arrastra para mirar alrededor — flechas del visor: moverse — ESC: volver al mapa', {
+      'Arrastra: mirar alrededor — ESPACIO: hablar — T: viajar — ESC: volver al mapa', {
       fontFamily: FONT_MONO, fontSize: '10px', color: '#ece7dd'
     }).setOrigin(1, 0).setDepth(6).setShadow(0, 0, '#0e1024', 6, false, true);
 
@@ -273,10 +273,16 @@ export class StreetViewScene extends Phaser.Scene {
       padding: { x: 12, y: 8 }
     }).setOrigin(0.5).setDepth(6);
 
-    this.keys = this.input.keyboard.addKeys('SPACE,ESC');
+    this.keys = this.input.keyboard.addKeys('SPACE,ESC,T');
     this.box = new DialogueBox(this, this.state);
     this.currentPos = null;
-    this.interactableKind = null; // 'talk' | 'bus' | null — cuál está en rango ahora mismo
+    this.nearestPoi = null; // poi de `points.pois` en rango de "hablar", si hay
+    this.nearViajar = false; // si está en rango del punto de "viajar"
+    // Se pone en true cuando la conversación de esta localidad llega a
+    // 'Cierre'->Selector (type 'hub') — mientras sea false, "viajar" hace
+    // fast-travel entre los puntos de interés de ESTA localidad; una vez
+    // terminada, "viajar" pasa a otra localidad al azar.
+    this.storyDone = false;
     // Phaser no llama solo un método `shutdown()` — hay que engancharlo al
     // evento de la escena (a diferencia de create/update, que sí son
     // especiales) para que el <div> se oculte al salir de esta escena.
@@ -308,9 +314,17 @@ export class StreetViewScene extends Phaser.Scene {
       if (pos) this.currentPos = { lat: pos.lat(), lng: pos.lng() };
     });
 
+    this.seekTo(points.pois[0]);
+  }
+
+  // Busca el panorama real más cercano a `point` (lat/lng) y salta ahí —
+  // usado tanto para entrar por primera vez a la localidad como para el
+  // fast-travel de "viajar" entre puntos de interés.
+  seekTo(point) {
+    this.statusText.setText('Buscando cobertura de Street View…').setVisible(true);
     const svService = new google.maps.StreetViewService();
     const trySearch = (radius, onFail) => {
-      svService.getPanorama({ location: points.entry, radius, source: google.maps.StreetViewSource.OUTDOOR }, (data, status) => {
+      svService.getPanorama({ location: point, radius, source: google.maps.StreetViewSource.OUTDOOR }, (data, status) => {
         if (status === google.maps.StreetViewStatus.OK) {
           this.statusText.setVisible(false);
           this.panorama.setPano(data.location.pano);
@@ -318,46 +332,53 @@ export class StreetViewScene extends Phaser.Scene {
         } else if (onFail) {
           onFail();
         } else {
-          this.statusText.setText('No se encontró Street View cerca de esta localidad.\nESC: volver al mapa');
+          this.statusText.setText('No se encontró Street View cerca de este punto.\nESC: volver al mapa');
         }
       });
     };
     trySearch(300, () => trySearch(1500, null));
   }
 
-  // Convierte metros de distancia a un color de urgencia simple para el
-  // prompt (más cerca = coincide con el texto "hablar"/"tomar bus").
   updateInteractable() {
     if (!this.currentPos) { this.prompt.setVisible(false); return; }
-    const distTalk = metersBetween(this.currentPos, this.points.talk);
-    const distBus = metersBetween(this.currentPos, this.points.bus);
     const RANGE = 60;
-    if (distTalk < RANGE) {
-      this.interactableKind = 'talk';
-      this.prompt.setText(`[ESPACIO] hablar — ${this.points.talk.label}`).setVisible(true);
-    } else if (distBus < RANGE) {
-      this.interactableKind = 'bus';
-      this.prompt.setText(`[ESPACIO] tomar el bus — ${this.points.bus.label}`).setVisible(true);
+    // Una vez terminada la historia de esta localidad (llegó a Cierre ->
+    // Selector), ya no hay más que "hablar" acá — solo queda viajar.
+    this.nearestPoi = this.storyDone ? null : (this.points.pois.find(p => metersBetween(this.currentPos, p) < RANGE) || null);
+    this.nearViajar = metersBetween(this.currentPos, this.points.viajar) < RANGE;
+
+    if (this.nearestPoi) {
+      const viajarHint = this.nearViajar ? '  —  [T] viajar' : '';
+      this.prompt.setText(`[ESPACIO] hablar — ${this.nearestPoi.label}${viajarHint}`).setVisible(true);
+    } else if (this.nearViajar) {
+      this.prompt.setText(`[T] viajar — ${this.points.viajar.label}`).setVisible(true);
     } else {
-      this.interactableKind = null;
       this.prompt.setVisible(false);
     }
   }
 
   talkToNpc() {
-    this.box.open(`${this.locality}: Entrada`, (type) => {
+    const placeLabel = this.nearestPoi ? this.nearestPoi.label : null;
+    this.box.open(this.state.currentNodeId, (type) => {
       if (type === 'ending') this.scene.start('EndingScene');
-    });
+      else if (type === 'hub') this.storyDone = true;
+      // type 'checkpoint': la conversación se pausa acá — se retoma en
+      // cualquier punto de interés más adelante, no hace falta nada más.
+    }, placeLabel);
   }
 
-  takeBus() {
+  viajar() {
+    if (!this.storyDone) {
+      // Fast-travel a otro punto de interés de la MISMA localidad —
+      // evita tener que arrastrar Street View a mano hasta encontrarlo.
+      const others = this.points.pois.filter(p => p !== this.nearestPoi);
+      const target = others[Math.floor(Math.random() * others.length)] || this.points.pois[0];
+      this.seekTo(target);
+      return;
+    }
     const nextLoc = this.state.nextRandomFromPool();
     if (!nextLoc) { this.scene.start('EndingScene'); return; }
-    if (STREETVIEW_POINTS[nextLoc]) {
-      this.scene.start('StreetViewScene', { locality: nextLoc });
-    } else {
-      this.scene.start('DialogueScene');
-    }
+    this.scene.start('StreetViewScene', { locality: nextLoc });
   }
 
   update() {
@@ -371,10 +392,12 @@ export class StreetViewScene extends Phaser.Scene {
     if (Phaser.Input.Keyboard.JustDown(this.keys.ESC)) { this.scene.start('MapScene'); return; }
 
     this.updateInteractable();
-    if (this.interactableKind && Phaser.Input.Keyboard.JustDown(this.keys.SPACE)) {
+    if (this.nearestPoi && Phaser.Input.Keyboard.JustDown(this.keys.SPACE)) {
       this.prompt.setVisible(false);
-      if (this.interactableKind === 'talk') this.talkToNpc();
-      else this.takeBus();
+      this.talkToNpc();
+    } else if (this.nearViajar && Phaser.Input.Keyboard.JustDown(this.keys.T)) {
+      this.prompt.setVisible(false);
+      this.viajar();
     }
   }
 
