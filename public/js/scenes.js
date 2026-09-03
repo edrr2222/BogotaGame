@@ -2,7 +2,7 @@ import { NODE_BY_ID } from './storyData.js';
 import {
   PALETTE, FONT_DISPLAY, FONT_BODY, FONT_MONO,
   STAT_ORDER, LOCATIONS, STAT_BY_LOCATION, TRAITS,
-  AVATAR_MANIFEST, BACKGROUND_MANIFEST, WALKABLE_SCENES, assetUrl, avatarById,
+  AVATAR_MANIFEST, BACKGROUND_MANIFEST, STREETVIEW_POINTS, assetUrl, avatarById,
 } from './gameConfig.js';
 import { entityPolygonPoints } from './gameState.js';
 import { DialogueBox } from './dialogueBox.js';
@@ -15,19 +15,12 @@ export class BootScene extends Phaser.Scene {
   constructor() { super('BootScene'); }
 
   preload() {
-    AVATAR_MANIFEST.forEach(a => {
-      Object.values(a.dirs).forEach(d => this.load.image(d.key, assetUrl(d.path)));
-    });
+    // Solo la vista de frente: era la única realmente usada fuera del
+    // sistema caminable con sprites direccionales (WalkScene), que se
+    // reemplazó por Street View real (StreetViewScene) — cargar
+    // back/left/right acá ya no tiene para qué.
+    AVATAR_MANIFEST.forEach(a => this.load.image(a.dirs.front.key, assetUrl(a.dirs.front.path)));
     Object.values(BACKGROUND_MANIFEST).flat().forEach(b => this.load.image(b.key, assetUrl(b.path)));
-    Object.values(WALKABLE_SCENES).forEach(cfg => {
-      (cfg.pathTiles || []).forEach(t => this.load.image(t.key, assetUrl(t.path)));
-      (cfg.screens || [cfg]).forEach(screen => {
-        if (screen.streetscape) this.load.image(screen.streetscape.key, assetUrl(screen.streetscape.path));
-        if (screen.npc) this.load.image(screen.npc.key, assetUrl(screen.npc.path));
-        if (screen.busStop) this.load.image(screen.busStop.key, assetUrl(screen.busStop.path));
-        (screen.props || []).forEach(p => this.load.image(p.key, assetUrl(p.path)));
-      });
-    });
   }
 
   create() {
@@ -153,8 +146,8 @@ export class MapScene extends Phaser.Scene {
     this.state.momento = Math.random() < 0.5 ? 'Día' : 'Noche';
     this.state.visitadas.push(loc);
     this.state.currentNodeId = `${loc}: Entrada`;
-    if (WALKABLE_SCENES[loc]) {
-      this.scene.start('WalkScene', { locality: loc });
+    if (STREETVIEW_POINTS[loc] && this.game.mapsReady) {
+      this.scene.start('StreetViewScene', { locality: loc });
     } else {
       this.scene.start('DialogueScene');
     }
@@ -211,274 +204,187 @@ export class DialogueScene extends Phaser.Scene {
   }
 }
 
+// Un solo google.maps.StreetViewPanorama compartido entre visitas — crearlo
+// de nuevo cada vez que se entra a una localidad es innecesario (es un
+// objeto pesado) y no hace falta: alcanza con reposicionarlo.
+let sharedPanorama = null;
+function getStreetViewContainer() {
+  return document.getElementById('streetview-container');
+}
+
+// Distancia en metros entre dos puntos lat/lng (haversine) — para saber si
+// el jugador ya navegó, dentro de Street View, hasta el punto real donde
+// se activa el diálogo o la parada de bus.
+function metersBetween(a, b) {
+  const R = 6371000;
+  const toRad = (d) => (d * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const s = Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(s));
+}
+
 /* ============================================================
-   ESCENA: CAMINAR — localidad como secuencia de pantallas conectadas
-   por los bordes (screens[] en WALKABLE_SCENES). La pantalla 0 tiene
-   el NPC que abre el diálogo de "Entrada"; la última tiene la parada
-   de bus/Transmilenio que manda a otra localidad al azar (o a la
-   revelación si ya no queda ninguna).
+   ESCENA: STREET VIEW REAL — el jugador explora Google Street View de
+   verdad dentro de la localidad elegida en el mapa (arrastra/usa las
+   flechas del propio visor de Google para moverse por las calles reales),
+   y se dispara diálogo o la parada de bus al acercarse navegando a un
+   punto real específico (una plaza, una estación) en vez de a un sprite
+   dibujado. El <div id="streetview-container"> vive DEBAJO del canvas de
+   Phaser (mismo rectángulo, ver css/style.css) — el canvas se vuelve
+   transparente a los clics mientras se explora libremente, y solo los
+   recupera mientras la ventana de diálogo está abierta.
    ============================================================ */
-export class WalkScene extends Phaser.Scene {
-  constructor() { super('WalkScene'); }
+export class StreetViewScene extends Phaser.Scene {
+  constructor() { super('StreetViewScene'); }
 
   init(data) {
     this.locality = data.locality;
-    this.screenIndex = data.screenIndex || 0;
-    this.enterFrom = data.enterFrom || null; // 'left' | 'right' | null (primer ingreso)
   }
 
   create() {
     this.state = this.game.gState;
-    const cfg = this.cfg = WALKABLE_SCENES[this.locality];
-    const screens = cfg.screens || [cfg]; // compat: localidad sin migrar a screens[] todavía
-    this.totalScreens = screens.length;
-    const screen = this.screen = screens[this.screenIndex];
-    const isNight = this.state.momento === 'Noche';
+    const points = this.points = STREETVIEW_POINTS[this.locality];
     const W = this.scale.width;
-    const b = cfg.bounds;
+    const isNight = this.state.momento === 'Noche';
 
-    this.cameras.main.setBackgroundColor(isNight ? cfg.groundColorNight : cfg.groundColorDay);
-    this.drawSky(isNight, W);
+    // A diferencia de las demás escenas, NO se llama a setBackgroundColor
+    // — una cámara nueva ya nace transparente, y con `transparent:true` en
+    // el config de Phaser (main.js) eso deja ver el Street View real de
+    // abajo en todo lo que este canvas no pinte explícitamente.
+    this.game.canvas.style.pointerEvents = 'none';
 
     this.add.text(24, 16, this.locality.toUpperCase(), {
       fontFamily: FONT_DISPLAY, fontSize: '20px', color: isNight ? '#f2a03d' : '#c1440e'
-    }).setDepth(6);
-    this.add.text(W - 24, 16, isNight ? 'NOCHE' : 'DÍA', {
-      fontFamily: FONT_MONO, fontSize: '12px', color: '#8892b0'
-    }).setOrigin(1, 0).setDepth(6);
-    this.add.text(W - 24, 38,
-      `Pantalla ${this.screenIndex + 1}/${this.totalScreens} — WASD: moverse — ESC: volver al mapa`, {
-      fontFamily: FONT_MONO, fontSize: '10px', color: '#8892b0'
-    }).setOrigin(1, 0).setDepth(6);
+    }).setDepth(6).setShadow(0, 0, '#0e1024', 6, false, true);
+    this.add.text(W - 24, 16,
+      'Arrastra para mirar alrededor — flechas del visor: moverse — ESC: volver al mapa', {
+      fontFamily: FONT_MONO, fontSize: '10px', color: '#ece7dd'
+    }).setOrigin(1, 0).setDepth(6).setShadow(0, 0, '#0e1024', 6, false, true);
 
-    // El panorámico ya trae edificios + calle/acera pintados como una sola
-    // escena continua (no es solo una fachada) — se escala para cubrir TODA
-    // la pantalla de arriba a abajo (recortado por los lados, centrado) en
-    // vez de solo el ancho con una franja de baldosas pegada debajo, que se
-    // veía como un piso aparte sin relación con la acera ya pintada.
-    let hasStreetscape = false;
-    if (screen.streetscape && this.textures.exists(screen.streetscape.key)) {
-      hasStreetscape = true;
-      // No se estira a las 720 completas: eso dejaba solo una franja
-      // angosta de calle pintada al fondo para caminar. Se deja una banda
-      // plana (del color de fondo de la cámara, ya puesto) debajo de la
-      // imagen para el carril — sin baldosas pegadas, un solo color liso
-      // que combina con la propia calle pintada arriba.
-      const STREETSCAPE_H = 600;
-      const bg = this.add.image(W / 2, 0, screen.streetscape.key).setOrigin(0.5, 0).setDepth(-1);
-      const bgScale = STREETSCAPE_H / bg.height;
-      bg.setDisplaySize(bg.width * bgScale, STREETSCAPE_H);
-      if (isNight) bg.setTint(0x8891c8);
+    this.prompt = this.add.text(W / 2, this.scale.height - 40, '', {
+      fontFamily: FONT_MONO, fontSize: '13px', color: '#f2a03d', backgroundColor: '#14162bcc',
+      padding: { x: 10, y: 6 }
+    }).setOrigin(0.5).setDepth(6).setVisible(false);
+
+    this.statusText = this.add.text(W / 2, this.scale.height / 2, 'Buscando cobertura de Street View…', {
+      fontFamily: FONT_MONO, fontSize: '13px', color: '#ece7dd', backgroundColor: '#14162bcc',
+      padding: { x: 12, y: 8 }
+    }).setOrigin(0.5).setDepth(6);
+
+    this.keys = this.input.keyboard.addKeys('SPACE,ESC');
+    this.box = new DialogueBox(this, this.state);
+    this.currentPos = null;
+    this.interactableKind = null; // 'talk' | 'bus' | null — cuál está en rango ahora mismo
+    // Phaser no llama solo un método `shutdown()` — hay que engancharlo al
+    // evento de la escena (a diferencia de create/update, que sí son
+    // especiales) para que el <div> se oculte al salir de esta escena.
+    this.events.once('shutdown', this.shutdown, this);
+
+    const container = getStreetViewContainer();
+    container.style.display = 'block';
+
+    if (!sharedPanorama) {
+      sharedPanorama = new google.maps.StreetViewPanorama(container, {
+        addressControl: false, fullscreenControl: false, motionTracking: false,
+        motionTrackingControl: false, showRoadLabels: false,
+      });
+    } else {
+      sharedPanorama.setOptions({ visible: true });
+      // Reengancha el panorama compartido al contenedor de ESTA escena (por
+      // si Phaser recreó el DOM entre escenas, aunque normalmente no pasa).
+      if (sharedPanorama.getContainer && sharedPanorama.getContainer() !== container) {
+        sharedPanorama = new google.maps.StreetViewPanorama(container, {
+          addressControl: false, fullscreenControl: false, motionTracking: false,
+          motionTrackingControl: false, showRoadLabels: false,
+        });
+      }
     }
+    this.panorama = sharedPanorama;
 
-    if (!hasStreetscape) this.drawPath(cfg, isNight);
-
-    (screen.props || []).forEach(p => {
-      if (!this.textures.exists(p.key)) return;
-      this.add.image(p.x, p.y, p.key).setScale(p.scale || 1).setDepth(p.depth || 1);
+    this.posListener = this.panorama.addListener('position_changed', () => {
+      const pos = this.panorama.getPosition();
+      if (pos) this.currentPos = { lat: pos.lat(), lng: pos.lng() };
     });
 
-    // Un solo "interactuable" por pantalla: el NPC de diálogo (pantalla 0) o
-    // la parada de bus (última pantalla) — nunca los dos a la vez.
-    this.interactable = null;
-    if (screen.npc && this.textures.exists(screen.npc.key)) {
-      const npc = this.add.image(screen.npc.x, screen.npc.y, screen.npc.key).setDepth(3);
-      this.fitHeight(npc, 70);
-      this.interactable = { obj: npc, promptText: '[ESPACIO] hablar', onTrigger: () => this.talkToNpc() };
-    } else if (screen.busStop && this.textures.exists(screen.busStop.key)) {
-      const bs = this.add.image(screen.busStop.x, screen.busStop.y, screen.busStop.key).setDepth(3);
-      this.fitHeight(bs, 90);
-      this.interactable = { obj: bs, promptText: '[ESPACIO] tomar el bus', onTrigger: () => this.takeBus() };
+    const svService = new google.maps.StreetViewService();
+    const trySearch = (radius, onFail) => {
+      svService.getPanorama({ location: points.entry, radius, source: google.maps.StreetViewSource.OUTDOOR }, (data, status) => {
+        if (status === google.maps.StreetViewStatus.OK) {
+          this.statusText.setVisible(false);
+          this.panorama.setPano(data.location.pano);
+          this.panorama.setPov({ heading: 0, pitch: 0 });
+        } else if (onFail) {
+          onFail();
+        } else {
+          this.statusText.setText('No se encontró Street View cerca de esta localidad.\nESC: volver al mapa');
+        }
+      });
+    };
+    trySearch(300, () => trySearch(1500, null));
+  }
+
+  // Convierte metros de distancia a un color de urgencia simple para el
+  // prompt (más cerca = coincide con el texto "hablar"/"tomar bus").
+  updateInteractable() {
+    if (!this.currentPos) { this.prompt.setVisible(false); return; }
+    const distTalk = metersBetween(this.currentPos, this.points.talk);
+    const distBus = metersBetween(this.currentPos, this.points.bus);
+    const RANGE = 60;
+    if (distTalk < RANGE) {
+      this.interactableKind = 'talk';
+      this.prompt.setText(`[ESPACIO] hablar — ${this.points.talk.label}`).setVisible(true);
+    } else if (distBus < RANGE) {
+      this.interactableKind = 'bus';
+      this.prompt.setText(`[ESPACIO] tomar el bus — ${this.points.bus.label}`).setVisible(true);
+    } else {
+      this.interactableKind = null;
+      this.prompt.setVisible(false);
     }
-
-    this.avatar = avatarById(this.state.characterId);
-    this.facing = 'front';
-    const frontKey = this.avatar?.dirs.front.key;
-    // Arranca cerca de la fila de arriba de la franja caminable (junto a los
-    // edificios), no en la mitad de la plaza ancha — así el jugador aparece
-    // donde está el NPC/parada en vez de lejos de ellos.
-    const spawnY = cfg.walkY.min + 30;
-    let spawnX;
-    if (this.enterFrom === 'left') spawnX = b.x + 40;
-    else if (this.enterFrom === 'right') spawnX = b.x + b.w - 40;
-    else spawnX = (screen.playerSpawn && screen.playerSpawn.x) || b.x + 120;
-    this.player = (frontKey && this.textures.exists(frontKey))
-      ? this.add.image(spawnX, spawnY, frontKey)
-      : this.add.rectangle(spawnX, spawnY, 26, 50, 0xece7dd);
-    this.player.setDepth(4);
-    if (frontKey && this.textures.exists(frontKey)) this.fitHeight(this.player, 76);
-
-    this.prompt = this.add.text(0, 0, '', {
-      fontFamily: FONT_MONO, fontSize: '12px', color: '#f2a03d'
-    }).setOrigin(0.5, 1).setDepth(5).setVisible(false);
-
-    this.keys = this.input.keyboard.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,SPACE,ESC');
-
-    this.box = new DialogueBox(this, this.state);
   }
 
   talkToNpc() {
     this.box.open(`${this.locality}: Entrada`, (type) => {
       if (type === 'ending') this.scene.start('EndingScene');
-      // type 'hub': el hilo de diálogo de esta localidad terminó, pero se
-      // sigue caminando en la misma pantalla hacia las siguientes / la
-      // parada de bus, no se vuelve al mapa automáticamente.
     });
   }
 
   takeBus() {
     const nextLoc = this.state.nextRandomFromPool();
     if (!nextLoc) { this.scene.start('EndingScene'); return; }
-    if (WALKABLE_SCENES[nextLoc]) {
-      this.scene.start('WalkScene', { locality: nextLoc, screenIndex: 0 });
+    if (STREETVIEW_POINTS[nextLoc]) {
+      this.scene.start('StreetViewScene', { locality: nextLoc });
     } else {
       this.scene.start('DialogueScene');
     }
   }
 
-  fitHeight(img, targetH) {
-    const scale = targetH / img.height;
-    img.setDisplaySize(img.width * scale, targetH);
-  }
-
-  // Cambia el sprite del jugador a la vista correspondiente (frente/espalda/
-  // izquierda/derecha) generada para ese avatar, en vez de solo espejear la
-  // imagen de frente.
-  setFacing(dir) {
-    if (!this.avatar || dir === this.facing) return;
-    const d = this.avatar.dirs[dir];
-    if (!d || !this.textures.exists(d.key)) return;
-    this.facing = dir;
-    this.player.setTexture(d.key);
-    this.fitHeight(this.player, 76);
-  }
-
-  // Carril caminable real: en vez de una sola baldosa repetida al infinito,
-  // va alternando entre las variantes de acera generadas para que se vea
-  // como una acera real y no una textura clonada.
-  drawPath(cfg, isNight) {
-    const tiles = (cfg.pathTiles || []).filter(t => this.textures.exists(t.key));
-    const bandH = cfg.walkY.max - cfg.walkY.min;
-    if (tiles.length === 0) {
-      const shade = isNight ? 0x232853 : 0xc9bd9e;
-      this.add.rectangle(cfg.bounds.x, cfg.walkY.min, cfg.bounds.w, bandH, shade, 0.6)
-        .setOrigin(0, 0).setDepth(0);
+  update() {
+    if (this.box.isOpen()) {
+      this.game.canvas.style.pointerEvents = 'auto';
+      this.box.update();
       return;
     }
-    // Varias filas (no una sola línea) para que la acera/plaza llene toda la
-    // franja caminable en vez de dejar un vacío grande debajo.
-    const tileSize = 60;
-    const cols = Math.ceil(cfg.bounds.w / tileSize) + 1;
-    const rows = Math.max(1, Math.round(bandH / tileSize));
-    for (let r = 0; r < rows; r++) {
-      const y = cfg.walkY.min + (r + 0.5) * (bandH / rows);
-      for (let c = 0; c < cols; c++) {
-        const t = tiles[(r * cols + c) % tiles.length];
-        this.add.image(cfg.bounds.x + c * tileSize, y, t.key)
-          .setDisplaySize(tileSize, bandH / rows + 1).setDepth(0);
-      }
+    this.game.canvas.style.pointerEvents = 'none';
+
+    if (Phaser.Input.Keyboard.JustDown(this.keys.ESC)) { this.scene.start('MapScene'); return; }
+
+    this.updateInteractable();
+    if (this.interactableKind && Phaser.Input.Keyboard.JustDown(this.keys.SPACE)) {
+      this.prompt.setVisible(false);
+      if (this.interactableKind === 'talk') this.talkToNpc();
+      else this.takeBus();
     }
   }
 
-  drawSky(isNight, W) {
-    const skyH = 190;
-    this.add.rectangle(0, 0, W, skyH, isNight ? 0x0b0e24 : 0x8ec9e8, 1).setOrigin(0, 0).setDepth(-2);
-
-    // El sol/luna van en -0.5, POR ENCIMA del streetscape (-1) — los fondos
-    // panorámicos siempre traen su propio cielo de día horneado en la
-    // imagen, así que si esto va detrás nunca se ve (de noche solo se veía
-    // el cielo azul oscurecido, sin luna ni estrellas).
-    if (isNight) {
-      this.add.circle(W - 90, 60, 22, 0xf4f0e0, 1).setDepth(-0.5);
-      this.add.circle(W - 80, 53, 18, 0x0b0e24, 1).setDepth(-0.5); // "muerde" la luna para dar forma de creciente
-      const stars = [[40,30],[90,70],[150,25],[210,55],[260,20],[310,65],[360,35],[420,15],
-        [460,60],[510,30],[560,50],[600,20],[30,90],[130,100],[240,95],[350,90],[450,100],[550,95],[620,80],[70,110]];
-      stars.forEach(([sx, sy]) => this.add.circle(sx, sy, 1.5, 0xffffff, 0.9).setDepth(-0.5));
-    } else {
-      this.add.circle(W - 90, 55, 30, 0xffe27a, 1).setDepth(-0.5);
-      this.add.circle(W - 90, 55, 22, 0xfff4c2, 1).setDepth(-0.5);
-      const cloudAt = (cx, cy) => {
-        const g = this.add.graphics().setDepth(-0.5);
-        g.fillStyle(0xffffff, 0.9);
-        g.fillEllipse(cx, cy, 46, 22);
-        g.fillEllipse(cx - 22, cy + 4, 30, 16);
-        g.fillEllipse(cx + 22, cy + 4, 30, 16);
-      };
-      cloudAt(140, 50);
-      cloudAt(340, 35);
-      cloudAt(500, 65);
-    }
-
-    // Filtro de opacamiento nocturno: capa oscura semitransparente sobre TODA
-    // la escena (encima de props/NPC/jugador, debajo del panel de diálogo y
-    // los textos de encabezado) para reforzar la sensación de noche.
-    if (isNight) {
-      this.add.rectangle(0, 0, W, this.scale.height, 0x0b0e24, 0.28).setOrigin(0, 0).setDepth(4.5);
-    }
-  }
-
-  update(time, delta) {
-    if (this.box.isOpen()) { this.box.update(); return; }
-
-    const k = this.keys;
-    if (Phaser.Input.Keyboard.JustDown(k.ESC)) { this.scene.start('MapScene'); return; }
-
-    const speed = 200 * (delta / 1000);
-    let dx = 0, dy = 0;
-    if (k.W.isDown || k.UP.isDown) dy -= 1;
-    if (k.S.isDown || k.DOWN.isDown) dy += 1;
-    if (k.A.isDown || k.LEFT.isDown) dx -= 1;
-    if (k.D.isDown || k.RIGHT.isDown) dx += 1;
-
-    if (dx !== 0 || dy !== 0) {
-      const len = Math.hypot(dx, dy);
-      const b = this.cfg.bounds;
-      const newX = this.player.x + (dx / len) * speed;
-      const newY = this.player.y + (dy / len) * speed;
-
-      // Al llegar al borde de una pantalla que sí continúa hacia otra, se
-      // transiciona en vez de quedar clavado contra el límite — así se
-      // "sigue hasta el borde del mapa y se muestra la continuación".
-      const canGoRight = this.screenIndex < this.totalScreens - 1;
-      const canGoLeft = this.screenIndex > 0;
-      if (canGoRight && newX > b.x + b.w - 15) {
-        this.scene.start('WalkScene', { locality: this.locality, screenIndex: this.screenIndex + 1, enterFrom: 'left' });
-        return;
-      }
-      if (canGoLeft && newX < b.x + 15) {
-        this.scene.start('WalkScene', { locality: this.locality, screenIndex: this.screenIndex - 1, enterFrom: 'right' });
-        return;
-      }
-
-      // El jugador queda confinado al carril de la acera (walkY), no a toda
-      // la escena — así no camina sobre los techos ni flotando en el cielo.
-      // Cuando SÍ hay pantalla siguiente/anterior, no se topa el clamp en
-      // ese lado (si no, el jugador quedaba atrapado un par de píxeles antes
-      // del umbral de transición y este nunca llegaba a dispararse).
-      const minX = canGoLeft ? -100000 : b.x + 20;
-      const maxX = canGoRight ? 100000 : b.x + b.w - 20;
-      this.player.x = Phaser.Math.Clamp(newX, minX, maxX);
-      this.player.y = Phaser.Math.Clamp(newY, this.cfg.walkY.min, this.cfg.walkY.max);
-      // Horizontal manda sobre vertical si se presionan a la vez (A/D
-      // cambian a la vista de lado, W/S a espalda/frente).
-      if (dx < 0) this.setFacing('left');
-      else if (dx > 0) this.setFacing('right');
-      else if (dy < 0) this.setFacing('back');
-      else this.setFacing('front');
-    }
-
-    if (this.interactable) {
-      const { obj, promptText, onTrigger } = this.interactable;
-      const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, obj.x, obj.y);
-      const inRange = dist < 70;
-      this.prompt.setText(promptText);
-      this.prompt.setPosition(obj.x, obj.y - 55);
-      this.prompt.setVisible(inRange);
-      if (inRange && Phaser.Input.Keyboard.JustDown(k.SPACE)) {
-        this.prompt.setVisible(false);
-        onTrigger();
-      }
-    }
+  shutdown() {
+    if (this.posListener) this.posListener.remove();
+    const container = getStreetViewContainer();
+    if (container) container.style.display = 'none';
+    // Se restaura a 'auto' (no 'none'): las demás escenas (MapScene,
+    // DialogueScene...) necesitan que el canvas SÍ reciba clics de nuevo.
+    this.game.canvas.style.pointerEvents = 'auto';
   }
 }
 

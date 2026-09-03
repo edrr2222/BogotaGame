@@ -9,8 +9,8 @@ const RADIUS = 22;
 // Ventana de diálogo chica, paginada y con forma de burbuja de cómic (no un
 // panel rectangular a lo RPG viejo) — cada página es un párrafo corto, para
 // que no se sienta pesado estar leyendo. La usan tanto DialogueScene
-// (localidades sin caminar) como WalkScene (localidades caminables), sobre
-// lo que cada una ya haya dibujado de fondo.
+// (respaldo sin Street View) como StreetViewScene (localidad real), sobre
+// lo que cada una ya haya dibujado/mostrado de fondo.
 export class DialogueBox {
   constructor(scene, state) {
     this.scene = scene;

@@ -1,0 +1,18 @@
+{
+  "walkway": [
+    {"x": 0, "yTop": 660, "yBottom": 843},
+    {"x": 180, "yTop": 700, "yBottom": 843},
+    {"x": 360, "yTop": 750, "yBottom": 843},
+    {"x": 540, "yTop": 765, "yBottom": 843},
+    {"x": 720, "yTop": 770, "yBottom": 843},
+    {"x": 900, "yTop": 773, "yBottom": 843},
+    {"x": 1080, "yTop": 775, "yBottom": 843},
+    {"x": 1263, "yTop": 775, "yBottom": 843}
+  ],
+  "interactables": [
+    {"label": "Cafe Entrance", "type": "door", "x": 290, "y": 755},
+    {"label": "Main Street Corner", "type": "landmark", "x": 425, "y": 765},
+    {"label": "Sidewalk Vendor Spot", "type": "npc_spot", "x": 930, "y": 775},
+    {"label": "Cafe Menu Board", "type": "landmark", "x": 370, "y": 760}
+  ]
+}

@@ -15,8 +15,29 @@ html, body {
   justify-content: center;
 }
 
+#stage {
+  position: relative;
+  width: 720px;
+  height: 720px;
+}
+
+/* Street View real (StreetViewScene) vive DEBAJO del canvas de Phaser, en
+   el mismo rectángulo exacto — el canvas se vuelve "transparente a los
+   clics" mientras se explora libremente (así los arrastres/clics llegan al
+   visor de Google) y solo recupera el mouse mientras la ventana de diálogo
+   está abierta. Ver StreetViewScene en scenes.js. */
+#streetview-container {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: none;
+}
+
 canvas {
   display: block;
+  position: absolute;
+  inset: 0;
+  z-index: 2;
 }
 
 #setup-overlay {

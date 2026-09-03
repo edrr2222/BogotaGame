@@ -42,16 +42,17 @@ export const TRAITS = {
    MANIFIESTO DE ASSETS — todo generado con Gemini (ver
    scripts/generate-art.js y scripts/art-jobs.js), en un mismo
    estilo plano consistente. Nada de assets/ original queda
-   referenciado aquí. Chapinero y Kennedy siguen sin fondo propio
-   (DialogueScene cae al color liso/vectorial para esas dos).
+   referenciado aquí. Ninguna localidad tiene fondo propio para
+   DialogueScene por ahora (solo se usa como respaldo si Street View
+   real no cargó — ver STREETVIEW_POINTS más abajo).
    ============================================================ */
 
-// Avatares seleccionables al personalizar el personaje. Cada uno tiene 4
-// vistas (frente/espalda/izquierda/derecha) generadas con Gemini a partir
-// de la misma imagen de referencia (ver scripts/art-jobs.js), para que al
-// caminar con WASD el personaje cambie de cara según hacia dónde se mueve
-// en vez de solo espejearse. `id` identifica al avatar; cada dirección
-// tiene su propio texture key para precargar.
+// Avatares seleccionables al personalizar el personaje. `avatarEntry` sigue
+// generando las 4 vistas (frente/espalda/izquierda/derecha, ver
+// scripts/art-jobs.js) aunque solo `front` se usa hoy — el resto quedó del
+// sistema de caminata con sprites direccionales (WASD), reemplazado por
+// Street View real (ver STREETVIEW_POINTS/StreetViewScene). `id` identifica
+// al avatar; cada dirección tiene su propio texture key para precargar.
 function avatarEntry(id, label, base) {
   return {
     id, label,
@@ -86,252 +87,70 @@ export function avatarById(id) {
 }
 
 // Fondos por localidad para DialogueScene: capas dibujadas de atrás hacia
-// adelante detrás del panel de texto. Ahora solo lo usan Chapinero y
-// Kennedy (las únicas 2 sin escenario caminable en WALKABLE_SCENES) — y
-// ninguna de las dos tiene arte propio, así que quedan con el fondo de
-// color liso existente. Las 6 localidades caminables ya no pasan por acá.
+// adelante detrás del panel de texto. DialogueScene solo se usa como
+// respaldo si Street View real (StreetViewScene) no pudo cargar — sin key
+// de Google Maps configurada, o si falló el script — así que de momento
+// ninguna localidad tiene arte propio acá, quedan con el fondo liso.
 export const BACKGROUND_MANIFEST = {};
 
 /* ============================================================
-   ESCENARIOS CAMINABLES — WASD dentro de una localidad. Todos los
-   props/NPCs de aquí son PNG de 1024x1024 generados con Gemini
-   (fondo magenta recortado por chroma-key en generate-art.js), por
-   eso los `scale` son chicos. `streetscape` es un fondo panorámico
-   (16:9) con una fila CONTINUA de fachadas — reemplaza los edificios
-   sueltos con huecos entre ellos que había antes.
-   `walkY` define el carril caminable real (una franja angosta sobre
-   la acera, no todo el alto de la escena) para que el jugador no
-   camine por encima de los techos ni flotando en el cielo.
-   `pathTiles` son las variantes de baldosa que se van alternando a
-   lo largo de ese carril.
-   Solo 2 localidades por ahora: La Candelaria y Suba.
+   STREET VIEW REAL — reemplaza el escenario pixel-art caminado con
+   WASD por Google Street View de verdad: el jugador explora las calles
+   reales de la localidad (arrastra/usa las flechas del propio visor de
+   Google), y se dispara diálogo/parada de bus al acercarse a un punto
+   real específico (`talk`/`bus`), no por proximidad a un sprite dibujado.
+   Cubre las 8 localidades por igual — ya no depende de tener arte
+   generado, así que resuelve el problema de localidades "sin configurar".
+
+   `entry`: coordenada semilla para buscar el panorama más cercano
+   (StreetViewService busca cobertura real en un radio alrededor).
+   `talk`/`bus`: coordenada real (plaza, esquina, estación) donde se
+   activa el disparador correspondiente al acercarse navegando.
+
+   Coordenadas de mejor esfuerzo (plazas/estaciones reales conocidas,
+   verificadas por búsqueda donde fue posible) — si alguna cae en un
+   punto raro o sin cobertura de Street View, es cuestión de ajustar el
+   par lat/lng, no de tocar código.
    ============================================================ */
-const WALK_BOUNDS = { x: 30, y: 90, w: 660, h: 400 };
-// Carril caminable dentro de la banda plana que queda debajo del streetscape
-// (que ahora se dibuja a 600px de alto) — ni la franja angosta de antes ni
-// la grilla de baldosas: solo el color de fondo liso de la cámara.
-const WALK_Y = { min: 620, max: 700 };
-const DEFAULT_WALK = { groundColorDay: PALETTE.day2, groundColorNight: PALETTE.night2, bounds: WALK_BOUNDS, walkY: WALK_Y };
-
-// Parada de bus/Transmilenio compartida por las 6 localidades caminables —
-// infraestructura genérica, no hace falta una versión distinta por zona.
-const BUS_STOP = { key: 'busstop_shared', path: 'Compartido/generado/parada_bus.png' };
-
-// Props genéricos (árboles, bancas, postes...) reusados entre localidades
-// para llenar las pantallas de tránsito sin tener que generar una versión
-// distinta de cada uno por zona — lo que sí cambia por localidad es el
-// streetscape de fondo, el NPC y 1-2 props "de firma" propios.
-const GENERIC = {
-  arbol1: 'Suba/generado/arbol_1.png', arbol2: 'Suba/generado/arbol_2.png',
-  arbusto1: 'Suba/generado/arbusto_1.png', arbusto2: 'Suba/generado/arbusto_2.png',
-  arbustoEsferico: 'Suba/generado/arbusto_esferico.png',
-  banco: 'Candelaria/generado/banco.png',
-  postePared: 'Candelaria/generado/poste_luz.png', posteIso: 'Suba/generado/poste_luz.png',
-  caneca: 'Suba/generado/canecas.png', maceta: 'Candelaria/generado/maceta.png',
-  senalAlto: 'Candelaria/generado/senal_alto.png', reja: 'Suba/generado/reja_negra.png',
-  carro: 'Candelaria/generado/carro.png', moto: 'Candelaria/generado/moto.png',
-};
-
-export const WALKABLE_SCENES = {
+export const STREETVIEW_POINTS = {
   "La Candelaria": {
-    ...DEFAULT_WALK,
-    pathTiles: [
-      { key: 'floor_candelaria_1', path: 'Candelaria/generado/piso_acera.png' },
-      { key: 'floor_candelaria_2', path: 'Candelaria/generado/piso_acera_2.png' },
-      { key: 'floor_candelaria_3', path: 'Candelaria/generado/piso_acera_3.png' },
-    ],
-    screens: [
-      {
-        streetscape: { key: 'streetscape_candelaria_1', path: 'Candelaria/generado/streetscape.png' },
-        npc: { key: 'npc_candelaria', path: 'Candelaria/generado/npc_espalda.png', x: 540, y: 645 },
-        props: [
-          { key: 'prop_candelaria_senal', path: GENERIC.senalAlto, x: 90, y: 630, scale: 0.07, depth: 1 },
-          { key: 'prop_candelaria_farola', path: 'Candelaria/generado/farola_pared.png', x: 180, y: 590, scale: 0.09, depth: 1 },
-          { key: 'prop_candelaria_maceta', path: GENERIC.maceta, x: 470, y: 630, scale: 0.07, depth: 2 },
-          { key: 'prop_candelaria_banco', path: GENERIC.banco, x: 250, y: 630, scale: 0.07, depth: 2 },
-          { key: 'prop_candelaria_moto', path: GENERIC.moto, x: 130, y: 630, scale: 0.09, depth: 2 },
-        ],
-      },
-      {
-        streetscape: { key: 'streetscape_candelaria_2', path: 'Candelaria/generado/streetscape_2.png' },
-        props: [
-          { key: 'prop_candelaria_poste', path: 'Candelaria/generado/poste_luz.png', x: 380, y: 590, scale: 0.1, depth: 1 },
-          { key: 'prop_candelaria_carro', path: GENERIC.carro, x: 610, y: 630, scale: 0.11, depth: 2 },
-          { key: 'prop_candelaria_rejilla', path: 'Candelaria/generado/rejilla.png', x: 250, y: 630, scale: 0.04, depth: 2 },
-          { key: 'prop_candelaria_arbusto', path: GENERIC.arbusto1, x: 150, y: 630, scale: 0.08, depth: 2 },
-        ],
-      },
-      {
-        streetscape: { key: 'streetscape_candelaria_3', path: 'Candelaria/generado/streetscape_3.png' },
-        busStop: { ...BUS_STOP, x: 500, y: 645 },
-        props: [
-          { key: 'prop_candelaria_maceta2', path: GENERIC.maceta, x: 200, y: 630, scale: 0.07, depth: 2 },
-        ],
-      },
-    ],
+    entry: { lat: 4.598056, lng: -74.075833 }, // Plaza de Bolívar
+    talk: { lat: 4.598056, lng: -74.075833, label: 'Plaza de Bolívar' },
+    bus: { lat: 4.601400, lng: -74.065700, label: 'Estación Las Aguas' },
   },
   "Suba": {
-    ...DEFAULT_WALK,
-    pathTiles: [
-      { key: 'floor_suba_1', path: 'Suba/generado/piso_1.png' },
-      { key: 'floor_suba_2', path: 'Suba/generado/piso_2.png' },
-      { key: 'floor_suba_3', path: 'Suba/generado/piso_3.png' },
-    ],
-    screens: [
-      {
-        streetscape: { key: 'streetscape_suba_1', path: 'Suba/generado/streetscape.png' },
-        npc: { key: 'npc_suba', path: 'Suba/generado/npc_espalda.png', x: 540, y: 645 },
-        props: [
-          { key: 'prop_suba_arbol1', path: GENERIC.arbol1, x: 110, y: 600, scale: 0.13, depth: 2 },
-          { key: 'prop_suba_arbusto1', path: GENERIC.arbusto1, x: 200, y: 630, scale: 0.08, depth: 2 },
-          { key: 'prop_suba_reja', path: GENERIC.reja, x: 420, y: 595, scale: 0.1, depth: 1 },
-        ],
-      },
-      {
-        streetscape: { key: 'streetscape_suba_2', path: 'Suba/generado/streetscape_2.png' },
-        props: [
-          { key: 'prop_suba_poste', path: GENERIC.posteIso, x: 300, y: 590, scale: 0.13, depth: 1 },
-          { key: 'prop_suba_seto', path: 'Suba/generado/seto.png', x: 460, y: 630, scale: 0.09, depth: 2 },
-          { key: 'prop_suba_arbustoesferico', path: GENERIC.arbustoEsferico, x: 560, y: 630, scale: 0.07, depth: 2 },
-          { key: 'prop_suba_canecas', path: GENERIC.caneca, x: 175, y: 630, scale: 0.07, depth: 2 },
-        ],
-      },
-      {
-        streetscape: { key: 'streetscape_suba_3', path: 'Suba/generado/streetscape_3.png' },
-        busStop: { ...BUS_STOP, x: 500, y: 645 },
-        props: [
-          { key: 'prop_suba_arbol2', path: GENERIC.arbol2, x: 660, y: 630, scale: 0.13, depth: 2 },
-          { key: 'prop_suba_arbusto2', path: GENERIC.arbusto2, x: 200, y: 630, scale: 0.08, depth: 2 },
-        ],
-      },
-    ],
+    entry: { lat: 4.741017, lng: -74.083842 }, // Plaza Fundacional de Suba
+    talk: { lat: 4.741017, lng: -74.083842, label: 'Plaza Fundacional de Suba' },
+    bus: { lat: 4.741800, lng: -74.079600, label: 'Portal Suba' },
   },
   "San Cristóbal": {
-    ...DEFAULT_WALK,
-    pathTiles: [
-      { key: 'floor_candelaria_1', path: 'Candelaria/generado/piso_acera.png' },
-      { key: 'floor_candelaria_2', path: 'Candelaria/generado/piso_acera_2.png' },
-      { key: 'floor_candelaria_3', path: 'Candelaria/generado/piso_acera_3.png' },
-    ],
-    screens: [
-      {
-        streetscape: { key: 'streetscape_sancristobal_1', path: 'SanCristobal/generado/streetscape_1.png' },
-        npc: { key: 'npc_sancristobal', path: 'SanCristobal/generado/npc_espalda.png', x: 540, y: 645 },
-        props: [
-          { key: 'prop_sancristobal_escalera', path: 'SanCristobal/generado/escalera.png', x: 250, y: 595, scale: 0.14, depth: 1 },
-          { key: 'prop_sancristobal_arbusto', path: GENERIC.arbusto1, x: 130, y: 630, scale: 0.08, depth: 2 },
-          { key: 'prop_sancristobal_caneca', path: GENERIC.caneca, x: 620, y: 630, scale: 0.07, depth: 2 },
-        ],
-      },
-      {
-        streetscape: { key: 'streetscape_sancristobal_2', path: 'SanCristobal/generado/streetscape_2.png' },
-        props: [
-          { key: 'prop_sancristobal_poste', path: GENERIC.postePared, x: 350, y: 590, scale: 0.1, depth: 1 },
-          { key: 'prop_sancristobal_arbol', path: GENERIC.arbol1, x: 550, y: 600, scale: 0.13, depth: 2 },
-        ],
-      },
-      {
-        streetscape: { key: 'streetscape_sancristobal_3', path: 'SanCristobal/generado/streetscape_3.png' },
-        busStop: { ...BUS_STOP, x: 500, y: 645 },
-        props: [
-          { key: 'prop_sancristobal_banco', path: GENERIC.banco, x: 200, y: 630, scale: 0.07, depth: 2 },
-        ],
-      },
-    ],
+    entry: { lat: 4.564500, lng: -74.096900 }, // Portal 20 de Julio / iglesia 20 de Julio
+    talk: { lat: 4.564500, lng: -74.096900, label: '20 de Julio' },
+    bus: { lat: 4.565000, lng: -74.096940, label: 'Portal 20 de Julio' },
   },
   "Ciudad Bolívar": {
-    ...DEFAULT_WALK,
-    pathTiles: [
-      { key: 'floor_candelaria_1', path: 'Candelaria/generado/piso_acera.png' },
-      { key: 'floor_candelaria_2', path: 'Candelaria/generado/piso_acera_2.png' },
-      { key: 'floor_candelaria_3', path: 'Candelaria/generado/piso_acera_3.png' },
-    ],
-    screens: [
-      {
-        streetscape: { key: 'streetscape_ciudadbolivar_1', path: 'Ciudad_Bolivar/generado/streetscape_1.png' },
-        npc: { key: 'npc_ciudadbolivar', path: 'Ciudad_Bolivar/generado/npc_espalda.png', x: 540, y: 645 },
-        props: [
-          { key: 'prop_ciudadbolivar_mural', path: 'Ciudad_Bolivar/generado/mural.png', x: 250, y: 590, scale: 0.14, depth: 1 },
-          { key: 'prop_ciudadbolivar_arbusto', path: GENERIC.arbusto2, x: 130, y: 630, scale: 0.08, depth: 2 },
-        ],
-      },
-      {
-        streetscape: { key: 'streetscape_ciudadbolivar_2', path: 'Ciudad_Bolivar/generado/streetscape_2.png' },
-        props: [
-          { key: 'prop_ciudadbolivar_poste', path: GENERIC.posteIso, x: 400, y: 590, scale: 0.13, depth: 1 },
-          { key: 'prop_ciudadbolivar_caneca', path: GENERIC.caneca, x: 600, y: 630, scale: 0.07, depth: 2 },
-        ],
-      },
-      {
-        streetscape: { key: 'streetscape_ciudadbolivar_3', path: 'Ciudad_Bolivar/generado/streetscape_3.png' },
-        busStop: { ...BUS_STOP, x: 500, y: 645 },
-        props: [
-          { key: 'prop_ciudadbolivar_arbol', path: GENERIC.arbol1, x: 180, y: 600, scale: 0.13, depth: 2 },
-        ],
-      },
-    ],
+    entry: { lat: 4.573000, lng: -74.156000 }, // Candelaria La Nueva
+    talk: { lat: 4.573000, lng: -74.156000, label: 'Candelaria La Nueva' },
+    bus: { lat: 4.569980, lng: -74.140040, label: 'Portal Tunal' },
   },
   "Puente Aranda": {
-    ...DEFAULT_WALK,
-    pathTiles: [
-      { key: 'floor_suba_1', path: 'Suba/generado/piso_1.png' },
-      { key: 'floor_suba_2', path: 'Suba/generado/piso_2.png' },
-      { key: 'floor_suba_3', path: 'Suba/generado/piso_3.png' },
-    ],
-    screens: [
-      {
-        streetscape: { key: 'streetscape_puentearanda_1', path: 'Puente_Aranda/generado/streetscape_1.png' },
-        npc: { key: 'npc_puentearanda', path: 'Puente_Aranda/generado/npc_espalda.png', x: 540, y: 645 },
-        props: [
-          { key: 'prop_puentearanda_tambores', path: 'Puente_Aranda/generado/tambores.png', x: 250, y: 630, scale: 0.11, depth: 2 },
-          { key: 'prop_puentearanda_senal', path: GENERIC.senalAlto, x: 120, y: 630, scale: 0.07, depth: 1 },
-        ],
-      },
-      {
-        streetscape: { key: 'streetscape_puentearanda_2', path: 'Puente_Aranda/generado/streetscape_2.png' },
-        props: [
-          { key: 'prop_puentearanda_poste', path: GENERIC.posteIso, x: 400, y: 590, scale: 0.13, depth: 1 },
-          { key: 'prop_puentearanda_carro', path: GENERIC.carro, x: 600, y: 630, scale: 0.11, depth: 2 },
-        ],
-      },
-      {
-        streetscape: { key: 'streetscape_puentearanda_3', path: 'Puente_Aranda/generado/streetscape_3.png' },
-        busStop: { ...BUS_STOP, x: 500, y: 645 },
-        props: [
-          { key: 'prop_puentearanda_caneca', path: GENERIC.caneca, x: 200, y: 630, scale: 0.07, depth: 2 },
-        ],
-      },
-    ],
+    entry: { lat: 4.618300, lng: -74.107500 }, // Parque Puente Aranda
+    talk: { lat: 4.618300, lng: -74.107500, label: 'Parque Puente Aranda' },
+    bus: { lat: 4.624700, lng: -74.101300, label: 'Estación Puente Aranda' },
   },
   "Usme": {
-    ...DEFAULT_WALK,
-    pathTiles: [
-      { key: 'floor_usme_1', path: 'Usme/generado/piso_1.png' },
-      { key: 'floor_usme_2', path: 'Usme/generado/piso_2.png' },
-      { key: 'floor_usme_3', path: 'Usme/generado/piso_3.png' },
-    ],
-    screens: [
-      {
-        streetscape: { key: 'streetscape_usme_1', path: 'Usme/generado/streetscape_1.png' },
-        npc: { key: 'npc_usme', path: 'Usme/generado/npc_espalda.png', x: 540, y: 645 },
-        props: [
-          { key: 'prop_usme_cerca', path: 'Usme/generado/cerca.png', x: 250, y: 600, scale: 0.13, depth: 1 },
-          { key: 'prop_usme_arbusto', path: GENERIC.arbusto1, x: 130, y: 630, scale: 0.08, depth: 2 },
-        ],
-      },
-      {
-        streetscape: { key: 'streetscape_usme_2', path: 'Usme/generado/streetscape_2.png' },
-        props: [
-          { key: 'prop_usme_arbol', path: GENERIC.arbol2, x: 400, y: 600, scale: 0.13, depth: 2 },
-        ],
-      },
-      {
-        streetscape: { key: 'streetscape_usme_3', path: 'Usme/generado/streetscape_3.png' },
-        busStop: { ...BUS_STOP, x: 500, y: 645 },
-        props: [
-          { key: 'prop_usme_arbusto2', path: GENERIC.arbusto2, x: 200, y: 630, scale: 0.08, depth: 2 },
-        ],
-      },
-    ],
+    entry: { lat: 4.477600, lng: -74.126500 }, // Plaza Fundacional de Usme
+    talk: { lat: 4.477600, lng: -74.126500, label: 'Plaza Fundacional de Usme' },
+    bus: { lat: 4.473056, lng: -74.116111, label: 'Portal Usme' },
+  },
+  "Chapinero": {
+    entry: { lat: 4.645428, lng: -74.061954 }, // Parque de los Hippies (Cl 60 #7-49) — coordenada verificada
+    talk: { lat: 4.645428, lng: -74.061954, label: 'Parque de los Hippies' },
+    bus: { lat: 4.657200, lng: -74.062800, label: 'Estación Chapinero' },
+  },
+  "Kennedy": {
+    entry: { lat: 4.611067, lng: -74.175698 }, // Parque Metropolitano Timiza — coordenada verificada
+    talk: { lat: 4.611067, lng: -74.175698, label: 'Parque Timiza' },
+    bus: { lat: 4.625500, lng: -74.153200, label: 'Estación Banderas' },
   },
 };

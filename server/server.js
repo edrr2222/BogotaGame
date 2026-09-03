@@ -1,4 +1,5 @@
 const path = require('path');
+const fsSync = require('fs');
 const fs = require('fs/promises');
 const express = require('express');
 
@@ -7,10 +8,34 @@ const DATA_DIR = path.join(__dirname, 'data');
 const RUNS_FILE = path.join(DATA_DIR, 'runs.json');
 const PORT = process.env.PORT || 3000;
 
+// Lee .env.local (GEMINI_API_KEY=..., GOOGLE_MAPS_API_KEY=...) sin pisar una
+// variable de entorno real que ya esté puesta — mismo mecanismo que usan los
+// scripts de scripts/*.js.
+function loadDotEnvLocal() {
+  const envPath = path.join(ROOT, '.env.local');
+  if (!fsSync.existsSync(envPath)) return;
+  for (const line of fsSync.readFileSync(envPath, 'utf-8').split('\n')) {
+    const m = line.match(/^\s*([\w.-]+)\s*=\s*(.*)\s*$/);
+    if (!m) continue;
+    const [, key, rawValue] = m;
+    const value = rawValue.replace(/^["']|["']$/g, '');
+    if (!(key in process.env)) process.env[key] = value;
+  }
+}
+loadDotEnvLocal();
+
 const app = express();
 app.use(express.json());
 app.use(express.static(path.join(ROOT, 'public')));
 app.use('/assets', express.static(path.join(ROOT, 'assets')));
+
+// La Maps JavaScript API key se usa desde el navegador (StreetViewScene) —
+// no es secreta como GEMINI_API_KEY, se restringe por HTTP referrer en Cloud
+// Console. Se sirve por este endpoint en vez de hornearla en un archivo
+// estático para no tener que commitear la key ni regenerar JS por entorno.
+app.get('/api/config', (req, res) => {
+  res.json({ googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY || null });
+});
 
 // Cola en memoria para serializar lecturas/escrituras de runs.json y evitar
 // que dos partidas terminando al mismo tiempo se pisen entre sí.
