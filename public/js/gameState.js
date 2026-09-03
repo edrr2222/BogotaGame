@@ -40,7 +40,9 @@ export class GameState {
   nextRandomFromPool() {
     if (this.pool.length === 0) return null;
     const loc = this.pool.splice(0, 1)[0];
-    this.momento = Math.random() < 0.5 ? 'Día' : 'Noche';
+    // Siempre de día: ver STREETVIEW_POINTS/StreetViewScene — Street View
+    // real no tiene fotos nocturnas de las calles.
+    this.momento = 'Día';
     this.visitadas.push(loc);
     this.currentNodeId = `${loc}: Entrada`;
     return loc;

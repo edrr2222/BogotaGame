@@ -145,7 +145,10 @@ export class MapScene extends Phaser.Scene {
 
   visitLocation(loc) {
     this.state.pool = this.state.pool.filter(l => l !== loc);
-    this.state.momento = Math.random() < 0.5 ? 'Día' : 'Noche';
+    // Siempre de día: el recorrido ahora es Street View real, y Google no
+    // tiene fotos nocturnas de las calles — mostrar "NOCHE" mientras se ve
+    // una foto de mediodía no tenía sentido.
+    this.state.momento = 'Día';
     this.state.visitadas.push(loc);
     this.state.currentNodeId = `${loc}: Entrada`;
     if (STREETVIEW_POINTS[loc] && this.game.mapsReady) {
@@ -313,6 +316,14 @@ export class StreetViewScene extends Phaser.Scene {
       : null;
     if (this.companion) this.fitHeight(this.companion, 70);
 
+    // Globo de comentario espontáneo de la entidad, cerca del compañero —
+    // aparece cuando el jugador se queda quieto mirando algo (ver
+    // `updateGazeComment`), no bloquea el movimiento, y se desvanece solo.
+    this.gazeCaption = this.add.text(120, this.scale.height - 210, '', {
+      fontFamily: FONT_BODY, fontSize: '13px', color: '#ece7dd', backgroundColor: '#1a1c38dd',
+      padding: { x: 10, y: 8 }, wordWrap: { width: 220 }
+    }).setOrigin(0, 1).setDepth(6).setVisible(false);
+
     this.statusText = this.add.text(W / 2, this.scale.height / 2, 'Buscando cobertura de Street View…', {
       fontFamily: FONT_MONO, fontSize: '13px', color: '#ece7dd', backgroundColor: '#14162bcc',
       padding: { x: 12, y: 8 }
@@ -330,6 +341,15 @@ export class StreetViewScene extends Phaser.Scene {
     // fast-travel entre los puntos de interés de ESTA localidad; una vez
     // terminada, "viajar" pasa a otra localidad al azar.
     this.storyDone = false;
+    // Comentario espontáneo al quedarse quieto mirando algo, en CUALQUIER
+    // parte de la localidad (no solo en los puntos de interés fijos): si
+    // pasan DWELL_MS sin mover ni la posición ni hacia dónde se mira, se
+    // dispara un comentario — con un enfriamiento mínimo entre uno y otro
+    // para no generar de más si alguien se queda quieto mucho rato.
+    this._lastMoveTime = Date.now();
+    this._lastGazeTriggerTime = 0;
+    this._gazeArmed = true;
+    this._gazeFetching = false;
     // Phaser no llama solo un método `shutdown()` — hay que engancharlo al
     // evento de la escena (a diferencia de create/update, que sí son
     // especiales) para que el <div> se oculte al salir de esta escena.
@@ -359,9 +379,21 @@ export class StreetViewScene extends Phaser.Scene {
     this.posListener = this.panorama.addListener('position_changed', () => {
       const pos = this.panorama.getPosition();
       if (pos) this.currentPos = { lat: pos.lat(), lng: pos.lng() };
+      this._onGazeMoved();
     });
+    this.povListener = this.panorama.addListener('pov_changed', () => this._onGazeMoved());
 
     this.seekTo(points.pois[0]);
+  }
+
+  // Cualquier movimiento (caminar a otro panorama o solo girar la vista)
+  // reinicia el reloj de "quietud" y rearma el disparo del próximo
+  // comentario espontáneo — así no se dispara mientras el jugador sigue
+  // activamente mirando alrededor, solo cuando de verdad se detiene.
+  _onGazeMoved() {
+    this._lastMoveTime = Date.now();
+    this._gazeArmed = true;
+    if (this.gazeCaption.visible) this.gazeCaption.setVisible(false);
   }
 
   fitHeight(img, targetH) {
@@ -422,29 +454,58 @@ export class StreetViewScene extends Phaser.Scene {
     }
   }
 
+  // Pide el comentario de la entidad sobre el pano/ángulo ACTUAL — mismo
+  // endpoint cacheado tanto para el disparo al hablar en un punto de
+  // interés como para el comentario espontáneo al quedarse quieto.
+  fetchEntityComment(poiLabel) {
+    const panoId = this.panorama.getPano();
+    const pov = this.panorama.getPov();
+    return fetch('/api/entity-comment', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        panoId, heading: pov.heading, pitch: pov.pitch,
+        locality: this.locality, poiLabel: poiLabel || this.locality,
+      }),
+    }).then(r => { if (!r.ok) throw new Error('bad status'); return r.json(); }).then(j => j.text);
+  }
+
   talkToNpc() {
     const placeLabel = this.nearestPoi ? this.nearestPoi.label : null;
-    // La entidad comenta sobre lo que se ve AHORA en Street View (foto
-    // estática del pano/ángulo actual + Gemini) — un gasto por llamada,
-    // no importa si falla o tarda: openWithEntityIntro sigue igual con el
-    // contenido normal de la localidad.
-    const fetchIntro = () => {
-      const panoId = this.panorama.getPano();
-      const pov = this.panorama.getPov();
-      return fetch('/api/entity-comment', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          panoId, heading: pov.heading, pitch: pov.pitch,
-          locality: this.locality, poiLabel: placeLabel || this.locality,
-        }),
-      }).then(r => { if (!r.ok) throw new Error('bad status'); return r.json(); }).then(j => j.text);
-    };
     this.box.openWithEntityIntro(this.state.currentNodeId, (type) => {
       if (type === 'ending') this.scene.start('EndingScene');
       else if (type === 'hub') this.storyDone = true;
       // type 'checkpoint': la conversación se pausa acá — se retoma en
       // cualquier punto de interés más adelante, no hace falta nada más.
-    }, placeLabel, fetchIntro);
+      // Reinicia el reloj de quietud: si no, el comentario espontáneo
+      // podría dispararse de inmediato al cerrar (la vista no se movió
+      // mientras el diálogo estaba abierto).
+      this._onGazeMoved();
+    }, placeLabel, () => this.fetchEntityComment(placeLabel));
+  }
+
+  // Si el jugador no mueve ni la posición ni hacia dónde mira por un
+  // rato, la entidad comenta sola sobre lo que hay ahora en pantalla —
+  // en CUALQUIER parte de la localidad, no solo en los puntos de interés
+  // fijos. No abre la ventana de diálogo (no bloquea el movimiento): es
+  // solo un globo de texto que se desvanece solo.
+  updateGazeComment() {
+    const DWELL_MS = 4000;
+    const COOLDOWN_MS = 20000;
+    if (!this._gazeArmed || this._gazeFetching) return;
+    const now = Date.now();
+    if (now - this._lastMoveTime < DWELL_MS) return;
+    if (now - this._lastGazeTriggerTime < COOLDOWN_MS) return;
+    this._gazeArmed = false;
+    this._gazeFetching = true;
+    this._lastGazeTriggerTime = now;
+    this.fetchEntityComment(this.nearestPoi ? this.nearestPoi.label : null)
+      .then((text) => {
+        this._gazeFetching = false;
+        if (!text) return;
+        this.gazeCaption.setText(text).setVisible(true);
+        this.scene.time.delayedCall(7000, () => this.gazeCaption.setVisible(false));
+      })
+      .catch(() => { this._gazeFetching = false; });
   }
 
   viajar() {
@@ -480,6 +541,10 @@ export class StreetViewScene extends Phaser.Scene {
       this.prompt.setVisible(false);
       this.talkToNpc();
     }
+    // El comentario espontáneo no compite con el diálogo de historia: si
+    // el de arriba acaba de abrir la ventana, no hace falta chequear esto
+    // también en el mismo frame.
+    if (!this.box.isOpen()) this.updateGazeComment();
     // "Viajar" funciona desde cualquier parte de la localidad, no solo
     // parado justo en la estación real — esa coordenada puede quedar a
     // más de un kilómetro de donde arrancás, e ir hasta ahí arrastrando
@@ -490,6 +555,7 @@ export class StreetViewScene extends Phaser.Scene {
 
   shutdown() {
     if (this.posListener) this.posListener.remove();
+    if (this.povListener) this.povListener.remove();
     const container = getStreetViewContainer();
     if (container) container.style.display = 'none';
     // Se restaura a 'auto' (no 'none'): las demás escenas (MapScene,

@@ -38,10 +38,18 @@ app.get('/api/config', (req, res) => {
   res.json({ googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY || null });
 });
 
-// Caché de comentarios de la entidad, en disco — un mismo panoId (el
-// mismo punto/foto real de Street View) SIEMPRE devuelve el comentario ya
-// generado la primera vez, para cualquier jugador que llegue después, en
-// vez de pagarle a Gemini de nuevo cada vez que alguien pasa por ahí.
+// Caché de comentarios de la entidad, en disco — la misma combinación de
+// panoId + hacia dónde se está mirando (redondeado a pasos de 30°, no el
+// ángulo exacto — si no, casi nunca habría dos pedidos idénticos) SIEMPRE
+// devuelve el comentario ya generado la primera vez, para cualquier
+// jugador que llegue después, en vez de pagarle a Gemini de nuevo. Esto
+// cubre tanto los puntos de interés fijos como el comentario espontáneo
+// al quedarse quieto mirando algo en cualquier parte de la localidad.
+function entityCacheKey(panoId, heading, pitch) {
+  const roundTo = (v, step) => Math.round(v / step) * step;
+  return `${panoId}|h${roundTo(heading, 30)}|p${roundTo(pitch, 30)}`;
+}
+
 let entityCacheQueue = Promise.resolve();
 
 async function readEntityCache() {
@@ -53,10 +61,10 @@ async function readEntityCache() {
   }
 }
 
-async function writeEntityCacheEntry(panoId, entry) {
+async function writeEntityCacheEntry(cacheKey, entry) {
   entityCacheQueue = entityCacheQueue.then(async () => {
     const cache = await readEntityCache();
-    cache[panoId] = entry;
+    cache[cacheKey] = entry;
     await fs.mkdir(DATA_DIR, { recursive: true });
     await fs.writeFile(ENTITY_CACHE_FILE, JSON.stringify(cache, null, 2), 'utf-8');
   });
@@ -81,9 +89,10 @@ app.post('/api/entity-comment', async (req, res) => {
     return res.status(400).json({ error: 'locality/poiLabel inválidos' });
   }
 
+  const cacheKey = entityCacheKey(panoId, heading, pitch);
   const cache = await readEntityCache();
-  if (cache[panoId]) {
-    return res.json({ text: cache[panoId].text, cached: true });
+  if (cache[cacheKey]) {
+    return res.json({ text: cache[cacheKey].text, cached: true });
   }
 
   const mapsKey = process.env.GOOGLE_MAPS_API_KEY;
@@ -114,7 +123,7 @@ app.post('/api/entity-comment', async (req, res) => {
     const text = geminiJson?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
     if (!text) throw new Error('Gemini no devolvió texto');
 
-    await writeEntityCacheEntry(panoId, { text, locality, poiLabel, createdAt: new Date().toISOString() });
+    await writeEntityCacheEntry(cacheKey, { text, locality, poiLabel, createdAt: new Date().toISOString() });
     res.json({ text, cached: false });
   } catch (err) {
     console.error('entity-comment falló:', err.message);
