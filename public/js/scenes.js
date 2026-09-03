@@ -2,7 +2,7 @@ import { NODE_BY_ID } from './storyData.js';
 import {
   PALETTE, FONT_DISPLAY, FONT_BODY, FONT_MONO,
   STAT_ORDER, LOCATIONS, STAT_BY_LOCATION, TRAITS,
-  AVATAR_MANIFEST, BACKGROUND_MANIFEST, STREETVIEW_POINTS, assetUrl, avatarById,
+  AVATAR_MANIFEST, BACKGROUND_MANIFEST, STREETVIEW_POINTS, UI_ICONS, COMPANION, assetUrl, avatarById,
 } from './gameConfig.js';
 import { entityPolygonPoints } from './gameState.js';
 import { DialogueBox } from './dialogueBox.js';
@@ -21,6 +21,8 @@ export class BootScene extends Phaser.Scene {
     // back/left/right acá ya no tiene para qué.
     AVATAR_MANIFEST.forEach(a => this.load.image(a.dirs.front.key, assetUrl(a.dirs.front.path)));
     Object.values(BACKGROUND_MANIFEST).flat().forEach(b => this.load.image(b.key, assetUrl(b.path)));
+    Object.values(UI_ICONS).forEach(icon => this.load.image(icon.key, assetUrl(icon.path)));
+    this.load.image(COMPANION.key, assetUrl(COMPANION.path));
   }
 
   create() {
@@ -268,6 +270,33 @@ export class StreetViewScene extends Phaser.Scene {
       padding: { x: 10, y: 6 }
     }).setOrigin(0.5).setDepth(6).setVisible(false);
 
+    // Ícono junto al prompt de abajo, para que se note de un vistazo que
+    // hay algo con qué interactuar sin tener que leer el texto primero —
+    // burbuja de diálogo dibujada (mismo estilo que DialogueBox, sin
+    // gastar más créditos) para "hablar", ícono de la parada de bus ya
+    // generado para "viajar". Se muestra uno u otro, nunca los dos.
+    this.hablarIcon = this.add.graphics().setDepth(6).setVisible(false);
+    this.hablarIcon.fillStyle(0x1a1c38, 1);
+    this.hablarIcon.fillRoundedRect(-16, -12, 32, 22, 6);
+    this.hablarIcon.fillTriangle(-6, 9, 4, 9, -3, 18);
+    this.hablarIcon.lineStyle(2, 0xf2a03d, 0.9);
+    this.hablarIcon.strokeRoundedRect(-16, -12, 32, 22, 6);
+    this.hablarIcon.fillStyle(0xf2a03d, 0.9);
+    [-8, 0, 8].forEach(dx => this.hablarIcon.fillCircle(dx, -1, 2));
+
+    this.viajarIcon = this.textures.exists(UI_ICONS.viajar.key)
+      ? this.add.image(0, 0, UI_ICONS.viajar.key).setDepth(6).setVisible(false)
+      : null;
+    if (this.viajarIcon) this.fitHeight(this.viajarIcon, 34);
+
+    // Compañero fijo, siempre en pantalla mientras se explora (se oculta
+    // detrás de la ventana de diálogo cuando está abierta) — da la
+    // sensación de ir acompañado en vez de solo mirando un visor de fotos.
+    this.companion = this.textures.exists(COMPANION.key)
+      ? this.add.image(50, this.scale.height - 190, COMPANION.key).setDepth(6)
+      : null;
+    if (this.companion) this.fitHeight(this.companion, 70);
+
     this.statusText = this.add.text(W / 2, this.scale.height / 2, 'Buscando cobertura de Street View…', {
       fontFamily: FONT_MONO, fontSize: '13px', color: '#ece7dd', backgroundColor: '#14162bcc',
       padding: { x: 12, y: 8 }
@@ -317,6 +346,11 @@ export class StreetViewScene extends Phaser.Scene {
     this.seekTo(points.pois[0]);
   }
 
+  fitHeight(img, targetH) {
+    const scale = targetH / img.height;
+    img.setDisplaySize(img.width * scale, targetH);
+  }
+
   // Busca el panorama real más cercano a `point` (lat/lng) y salta ahí —
   // usado tanto para entrar por primera vez a la localidad como para el
   // fast-travel de "viajar" entre puntos de interés.
@@ -340,20 +374,29 @@ export class StreetViewScene extends Phaser.Scene {
   }
 
   updateInteractable() {
-    if (!this.currentPos) { this.prompt.setVisible(false); return; }
+    if (!this.currentPos) { this.prompt.setVisible(false); this.hablarIcon.setVisible(false); if (this.viajarIcon) this.viajarIcon.setVisible(false); return; }
     const RANGE = 60;
     // Una vez terminada la historia de esta localidad (llegó a Cierre ->
     // Selector), ya no hay más que "hablar" acá — solo queda viajar.
     this.nearestPoi = this.storyDone ? null : (this.points.pois.find(p => metersBetween(this.currentPos, p) < RANGE) || null);
     this.nearViajar = metersBetween(this.currentPos, this.points.viajar) < RANGE;
 
+    // El ícono va pegado justo encima del texto del prompt, para que se
+    // note de un vistazo qué tipo de punto es sin tener que leer primero.
+    const iconY = this.prompt.y - 26;
     if (this.nearestPoi) {
       const viajarHint = this.nearViajar ? '  —  [T] viajar' : '';
       this.prompt.setText(`[ESPACIO] hablar — ${this.nearestPoi.label}${viajarHint}`).setVisible(true);
+      this.hablarIcon.setPosition(this.prompt.x, iconY).setVisible(true);
+      if (this.viajarIcon) this.viajarIcon.setVisible(false);
     } else if (this.nearViajar) {
       this.prompt.setText(`[T] viajar — ${this.points.viajar.label}`).setVisible(true);
+      this.hablarIcon.setVisible(false);
+      if (this.viajarIcon) this.viajarIcon.setPosition(this.prompt.x, iconY).setVisible(true);
     } else {
       this.prompt.setVisible(false);
+      this.hablarIcon.setVisible(false);
+      if (this.viajarIcon) this.viajarIcon.setVisible(false);
     }
   }
 
@@ -384,10 +427,12 @@ export class StreetViewScene extends Phaser.Scene {
   update() {
     if (this.box.isOpen()) {
       this.game.canvas.style.pointerEvents = 'auto';
+      if (this.companion) this.companion.setVisible(false);
       this.box.update();
       return;
     }
     this.game.canvas.style.pointerEvents = 'none';
+    if (this.companion) this.companion.setVisible(true);
 
     if (Phaser.Input.Keyboard.JustDown(this.keys.ESC)) { this.scene.start('MapScene'); return; }
 

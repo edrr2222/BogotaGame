@@ -93,6 +93,15 @@ export function avatarById(id) {
 // ninguna localidad tiene arte propio acá, quedan con el fondo liso.
 export const BACKGROUND_MANIFEST = {};
 
+// Imágenes reutilizadas en StreetViewScene para que el HUD sea más
+// intuitivo: el ícono de "viajar" (parada de bus ya generada, compartida
+// entre localidades) y el compañero fijo que acompaña al jugador durante
+// todo el recorrido — reusan arte ya generado, sin gastar más créditos.
+export const UI_ICONS = {
+  viajar: { key: 'icon_viajar', path: 'Compartido/generado/parada_bus.png' },
+};
+export const COMPANION = { key: 'companion_amigo', path: 'Candelaria/generado/npc_espalda.png' };
+
 /* ============================================================
    STREET VIEW REAL — el jugador explora las calles reales de la
    localidad (arrastra/usa las flechas del propio visor de Google), y la
