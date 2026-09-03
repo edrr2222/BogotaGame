@@ -1,5 +1,5 @@
 import { STAT_ORDER } from './gameConfig.js';
-import { LOCATIONS } from './gameConfig.js';
+import { LOCATIONS, WALKABLE_SCENES } from './gameConfig.js';
 
 export function shuffled(arr) {
   const a = arr.slice();
@@ -33,11 +33,15 @@ export class GameState {
   // Usado por la parada de bus/Transmilenio al final de una localidad: toma
   // la siguiente localidad ya barajada en $pool (sin dejar que el jugador
   // elija), la marca visitada y arranca su diálogo — igual que hacía
-  // "Siguiente Localidad" en el twee original. Devuelve null si ya no queda
-  // ninguna localidad por visitar.
+  // "Siguiente Localidad" en el twee original. Solo elige entre localidades
+  // con escenario caminable armado (WALKABLE_SCENES) — las que todavía no
+  // tienen arte (Chapinero, Kennedy) se saltan aquí, aunque siguen
+  // disponibles si el jugador las elige a mano desde el mapa. Devuelve null
+  // si ya no queda ninguna localidad armada por visitar.
   nextRandomFromPool() {
-    const loc = this.pool.shift();
-    if (!loc) return null;
+    const idx = this.pool.findIndex(loc => WALKABLE_SCENES[loc]);
+    if (idx === -1) return null;
+    const loc = this.pool.splice(idx, 1)[0];
     this.momento = Math.random() < 0.5 ? 'Día' : 'Noche';
     this.visitadas.push(loc);
     this.currentNodeId = `${loc}: Entrada`;

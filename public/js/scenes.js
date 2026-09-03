@@ -251,14 +251,27 @@ export class WalkScene extends Phaser.Scene {
       fontFamily: FONT_MONO, fontSize: '10px', color: '#8892b0'
     }).setOrigin(1, 0).setDepth(6);
 
+    // El panorámico ya trae edificios + calle/acera pintados como una sola
+    // escena continua (no es solo una fachada) — se escala para cubrir TODA
+    // la pantalla de arriba a abajo (recortado por los lados, centrado) en
+    // vez de solo el ancho con una franja de baldosas pegada debajo, que se
+    // veía como un piso aparte sin relación con la acera ya pintada.
+    let hasStreetscape = false;
     if (screen.streetscape && this.textures.exists(screen.streetscape.key)) {
-      const bg = this.add.image(0, 0, screen.streetscape.key).setOrigin(0, 0).setDepth(-1);
-      const bgScale = W / bg.width;
-      bg.setDisplaySize(W, bg.height * bgScale);
+      hasStreetscape = true;
+      // No se estira a las 720 completas: eso dejaba solo una franja
+      // angosta de calle pintada al fondo para caminar. Se deja una banda
+      // plana (del color de fondo de la cámara, ya puesto) debajo de la
+      // imagen para el carril — sin baldosas pegadas, un solo color liso
+      // que combina con la propia calle pintada arriba.
+      const STREETSCAPE_H = 600;
+      const bg = this.add.image(W / 2, 0, screen.streetscape.key).setOrigin(0.5, 0).setDepth(-1);
+      const bgScale = STREETSCAPE_H / bg.height;
+      bg.setDisplaySize(bg.width * bgScale, STREETSCAPE_H);
       if (isNight) bg.setTint(0x8891c8);
     }
 
-    this.drawPath(cfg, isNight);
+    if (!hasStreetscape) this.drawPath(cfg, isNight);
 
     (screen.props || []).forEach(p => {
       if (!this.textures.exists(p.key)) return;
