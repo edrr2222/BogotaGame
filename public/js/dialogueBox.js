@@ -108,6 +108,30 @@ export class DialogueBox {
     this.setVisible(true);
   }
 
+  // Como open(), pero antepone un comentario generado en vivo por "la
+  // entidad" sobre lo que realmente se ve en Street View en este momento
+  // (ver /api/entity-comment) como primera página — mientras se genera,
+  // muestra un estado de "pensando" corto. `fetchIntro` es una función
+  // que devuelve una Promise<string|null>; si falla o no hay texto, sigue
+  // directo al contenido normal sin romper nada.
+  openWithEntityIntro(nodeId, onDone, placeLabel, fetchIntro) {
+    this.open(nodeId, onDone, placeLabel);
+    if (!this.visible) return; // ya se resolvió como hub/ending en open()
+    const originalPages = this.pages;
+    this.pages = ['La entidad observa en silencio…', ...originalPages];
+    this.pageIndex = 0;
+    this._renderPage();
+    const applyIntro = (text) => {
+      // Si el jugador ya pasó de página (o cerró el diálogo) mientras se
+      // esperaba la respuesta, no se toca nada — evita que el arreglo de
+      // páginas cambie de largo debajo de un pageIndex que ya avanzó.
+      if (!this.visible || this.pageIndex !== 0) return;
+      this.pages = text ? [text, ...originalPages] : originalPages;
+      this._renderPage();
+    };
+    fetchIntro().then(applyIntro).catch(() => applyIntro(null));
+  }
+
   _loadNode() {
     const node = NODE_BY_ID[this.state.currentNodeId];
     this.node = node;

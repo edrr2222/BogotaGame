@@ -424,12 +424,27 @@ export class StreetViewScene extends Phaser.Scene {
 
   talkToNpc() {
     const placeLabel = this.nearestPoi ? this.nearestPoi.label : null;
-    this.box.open(this.state.currentNodeId, (type) => {
+    // La entidad comenta sobre lo que se ve AHORA en Street View (foto
+    // estática del pano/ángulo actual + Gemini) — un gasto por llamada,
+    // no importa si falla o tarda: openWithEntityIntro sigue igual con el
+    // contenido normal de la localidad.
+    const fetchIntro = () => {
+      const panoId = this.panorama.getPano();
+      const pov = this.panorama.getPov();
+      return fetch('/api/entity-comment', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          panoId, heading: pov.heading, pitch: pov.pitch,
+          locality: this.locality, poiLabel: placeLabel || this.locality,
+        }),
+      }).then(r => { if (!r.ok) throw new Error('bad status'); return r.json(); }).then(j => j.text);
+    };
+    this.box.openWithEntityIntro(this.state.currentNodeId, (type) => {
       if (type === 'ending') this.scene.start('EndingScene');
       else if (type === 'hub') this.storyDone = true;
       // type 'checkpoint': la conversación se pausa acá — se retoma en
       // cualquier punto de interés más adelante, no hace falta nada más.
-    }, placeLabel);
+    }, placeLabel, fetchIntro);
   }
 
   viajar() {
