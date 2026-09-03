@@ -361,6 +361,8 @@ export class StreetViewScene extends Phaser.Scene {
     // especiales) para que el <div> se oculte al salir de esta escena.
     this.events.once('shutdown', this.shutdown, this);
 
+    this.playAmbientSound();
+
     const container = getStreetViewContainer();
     container.style.display = 'block';
 
@@ -406,6 +408,29 @@ export class StreetViewScene extends Phaser.Scene {
   fitHeight(img, targetH) {
     const scale = targetH / img.height;
     img.setDisplaySize(img.width * scale, targetH);
+  }
+
+  // Sonido de ambiente en loop para esta localidad, si existe. Se carga
+  // por fuera de preload() (no todas las localidades van a tener uno
+  // necesariamente) — assets/sound/<Localidad>/ambiente.mp3. Si el
+  // archivo no existe, falla en silencio y el juego sigue igual, sin
+  // sonido; no bloquea nada.
+  playAmbientSound() {
+    const key = `ambiente_${this.locality}`;
+    if (this.cache.audio.exists(key)) {
+      this.ambientSound = this.sound.add(key, { loop: true, volume: 0.4 });
+      this.ambientSound.play();
+      return;
+    }
+    this.load.audio(key, assetUrl(`sound/${this.locality}/ambiente.mp3`));
+    this.load.once(`filecomplete-audio-${key}`, () => {
+      // La escena pudo haber cambiado mientras cargaba (ESC/viajar rápido)
+      if (!this.scene.isActive()) return;
+      this.ambientSound = this.sound.add(key, { loop: true, volume: 0.4 });
+      this.ambientSound.play();
+    });
+    this.load.once('loaderror', () => {}); // sin ambiente.mp3 todavía: no pasa nada
+    this.load.start();
   }
 
   // La entidad todavía no tiene formas distintas generadas (ver COMPANION
@@ -595,6 +620,7 @@ export class StreetViewScene extends Phaser.Scene {
   shutdown() {
     if (this.posListener) this.posListener.remove();
     if (this.povListener) this.povListener.remove();
+    if (this.ambientSound) this.ambientSound.stop();
     const container = getStreetViewContainer();
     if (container) container.style.display = 'none';
     // Se restaura a 'auto' (no 'none'): las demás escenas (MapScene,
