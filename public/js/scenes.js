@@ -261,7 +261,7 @@ export class StreetViewScene extends Phaser.Scene {
       fontFamily: FONT_DISPLAY, fontSize: '20px', color: isNight ? '#f2a03d' : '#c1440e'
     }).setDepth(6).setShadow(0, 0, '#0e1024', 6, false, true);
     this.add.text(W - 24, 16,
-      'Arrastra: mirar alrededor — ESPACIO: hablar — T: viajar — ESC: volver al mapa', {
+      'Arrastra: mirar alrededor — el diálogo se abre solo al acercarte — T: viajar — ESC: volver al mapa', {
       fontFamily: FONT_MONO, fontSize: '10px', color: '#ece7dd'
     }).setOrigin(1, 0).setDepth(6).setShadow(0, 0, '#0e1024', 6, false, true);
 
@@ -284,10 +284,26 @@ export class StreetViewScene extends Phaser.Scene {
     this.hablarIcon.fillStyle(0xf2a03d, 0.9);
     [-8, 0, 8].forEach(dx => this.hablarIcon.fillCircle(dx, -1, 2));
 
-    this.viajarIcon = this.textures.exists(UI_ICONS.viajar.key)
-      ? this.add.image(0, 0, UI_ICONS.viajar.key).setDepth(6).setVisible(false)
-      : null;
-    if (this.viajarIcon) this.fitHeight(this.viajarIcon, 34);
+    // Ícono de "viajar" FIJO (no atado a proximidad — la coordenada real
+    // de la estación puede quedar lejísimos de donde arrancás, así que
+    // exigir llegar ahí a pie por Street View lo hacía casi imposible de
+    // encontrar). Siempre visible abajo a la derecha — es solo un aviso
+    // (no clickeable): mientras se explora libremente, el canvas de
+    // Phaser está transparente a los clics a propósito para que el
+    // arrastre de Street View funcione, así que la única forma de
+    // activarlo es la tecla T, no el mouse.
+    this.viajarBtn = this.add.container(this.scale.width - 56, this.scale.height - 56).setDepth(6);
+    const viajarBg = this.add.circle(0, 0, 30, 0x14162b, 0.85).setStrokeStyle(2, 0xf2a03d, 0.9);
+    this.viajarBtn.add(viajarBg);
+    if (this.textures.exists(UI_ICONS.viajar.key)) {
+      const vImg = this.add.image(0, 0, UI_ICONS.viajar.key);
+      this.fitHeight(vImg, 40);
+      this.viajarBtn.add(vImg);
+    }
+    const viajarLabel = this.add.text(0, 36, '[T] viajar', {
+      fontFamily: FONT_MONO, fontSize: '10px', color: '#f2a03d'
+    }).setOrigin(0.5);
+    this.viajarBtn.add(viajarLabel);
 
     // Compañero fijo, siempre en pantalla mientras se explora (se oculta
     // detrás de la ventana de diálogo cuando está abierta) — da la
@@ -306,7 +322,9 @@ export class StreetViewScene extends Phaser.Scene {
     this.box = new DialogueBox(this, this.state);
     this.currentPos = null;
     this.nearestPoi = null; // poi de `points.pois` en rango de "hablar", si hay
-    this.nearViajar = false; // si está en rango del punto de "viajar"
+    // El diálogo se dispara SOLO al entrar en rango, no mientras estás
+    // parado ahí — se rearma cuando sales de rango (ver updateInteractable).
+    this._talkArmed = true;
     // Se pone en true cuando la conversación de esta localidad llega a
     // 'Cierre'->Selector (type 'hub') — mientras sea false, "viajar" hace
     // fast-travel entre los puntos de interés de ESTA localidad; una vez
@@ -374,29 +392,33 @@ export class StreetViewScene extends Phaser.Scene {
   }
 
   updateInteractable() {
-    if (!this.currentPos) { this.prompt.setVisible(false); this.hablarIcon.setVisible(false); if (this.viajarIcon) this.viajarIcon.setVisible(false); return; }
+    if (!this.currentPos) { this.prompt.setVisible(false); this.hablarIcon.setVisible(false); return; }
     const RANGE = 60;
     // Una vez terminada la historia de esta localidad (llegó a Cierre ->
     // Selector), ya no hay más que "hablar" acá — solo queda viajar.
+    const wasNear = !!this.nearestPoi;
     this.nearestPoi = this.storyDone ? null : (this.points.pois.find(p => metersBetween(this.currentPos, p) < RANGE) || null);
-    this.nearViajar = metersBetween(this.currentPos, this.points.viajar) < RANGE;
 
     // El ícono va pegado justo encima del texto del prompt, para que se
     // note de un vistazo qué tipo de punto es sin tener que leer primero.
     const iconY = this.prompt.y - 26;
     if (this.nearestPoi) {
-      const viajarHint = this.nearViajar ? '  —  [T] viajar' : '';
-      this.prompt.setText(`[ESPACIO] hablar — ${this.nearestPoi.label}${viajarHint}`).setVisible(true);
+      this.prompt.setText(`[ESPACIO] hablar — ${this.nearestPoi.label}`).setVisible(true);
       this.hablarIcon.setPosition(this.prompt.x, iconY).setVisible(true);
-      if (this.viajarIcon) this.viajarIcon.setVisible(false);
-    } else if (this.nearViajar) {
-      this.prompt.setText(`[T] viajar — ${this.points.viajar.label}`).setVisible(true);
-      this.hablarIcon.setVisible(false);
-      if (this.viajarIcon) this.viajarIcon.setPosition(this.prompt.x, iconY).setVisible(true);
+      // Se dispara solo al ENTRAR en rango (wasNear pasa de false a true),
+      // no en cada frame que sigas parado ahí — si no, apenas cerrara el
+      // diálogo en un checkpoint se volvería a abrir solo de inmediato y
+      // perderías el "hay que moverse a otro punto para seguir".
+      if (!wasNear && this._talkArmed) {
+        this._talkArmed = false;
+        this.prompt.setVisible(false);
+        this.hablarIcon.setVisible(false);
+        this.talkToNpc();
+      }
     } else {
+      this._talkArmed = true;
       this.prompt.setVisible(false);
       this.hablarIcon.setVisible(false);
-      if (this.viajarIcon) this.viajarIcon.setVisible(false);
     }
   }
 
@@ -428,11 +450,13 @@ export class StreetViewScene extends Phaser.Scene {
     if (this.box.isOpen()) {
       this.game.canvas.style.pointerEvents = 'auto';
       if (this.companion) this.companion.setVisible(false);
+      this.viajarBtn.setVisible(false);
       this.box.update();
       return;
     }
     this.game.canvas.style.pointerEvents = 'none';
     if (this.companion) this.companion.setVisible(true);
+    this.viajarBtn.setVisible(true);
 
     if (Phaser.Input.Keyboard.JustDown(this.keys.ESC)) { this.scene.start('MapScene'); return; }
 
@@ -440,10 +464,13 @@ export class StreetViewScene extends Phaser.Scene {
     if (this.nearestPoi && Phaser.Input.Keyboard.JustDown(this.keys.SPACE)) {
       this.prompt.setVisible(false);
       this.talkToNpc();
-    } else if (this.nearViajar && Phaser.Input.Keyboard.JustDown(this.keys.T)) {
-      this.prompt.setVisible(false);
-      this.viajar();
     }
+    // "Viajar" funciona desde cualquier parte de la localidad, no solo
+    // parado justo en la estación real — esa coordenada puede quedar a
+    // más de un kilómetro de donde arrancás, e ir hasta ahí arrastrando
+    // Street View a mano no es realista. El botón de abajo a la derecha
+    // (y la tecla T) siempre están disponibles.
+    if (Phaser.Input.Keyboard.JustDown(this.keys.T)) this.viajar();
   }
 
   shutdown() {
