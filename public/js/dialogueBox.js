@@ -1,5 +1,5 @@
 import { NODE_BY_ID } from './storyData.js';
-import { buildPages, isConvergenceNode } from './storyRuntime.js';
+import { buildPages } from './storyRuntime.js';
 import { FONT_DISPLAY, FONT_BODY, FONT_MONO, PALETTE } from './gameConfig.js';
 
 const BOX_H = 220;
@@ -9,8 +9,8 @@ const RADIUS = 22;
 // Ventana de diálogo chica, paginada y con forma de burbuja de cómic (no un
 // panel rectangular a lo RPG viejo) — cada página es un párrafo corto, para
 // que no se sienta pesado estar leyendo. La usan tanto DialogueScene
-// (respaldo sin Street View) como StreetViewScene (localidad real), sobre
-// lo que cada una ya haya dibujado/mostrado de fondo.
+// (localidades sin caminar) como WalkScene (localidades caminables), sobre
+// lo que cada una ya haya dibujado de fondo.
 export class DialogueBox {
   constructor(scene, state) {
     this.scene = scene;
@@ -88,48 +88,12 @@ export class DialogueBox {
   }
 
   // nodeId: nodo de arranque. onDone(type) se llama cuando la conversación
-  // termina o se pausa: 'hub' -> localidad terminada; 'ending' -> ir a la
-  // revelación; 'checkpoint' -> se pausó en un nodo de convergencia, se
-  // retoma después. `placeLabel`: nombre del punto real donde se abrió
-  // (ej. "Plaza de Bolívar") — se muestra junto al nombre de la localidad
-  // para que el diálogo se sienta anclado al lugar concreto, no genérico.
-  open(nodeId, onDone, placeLabel) {
+  // termina: type 'hub' -> volver al mapa; 'ending' -> ir a la revelación.
+  open(nodeId, onDone) {
     this._onDone = onDone;
-    this._placeLabel = placeLabel || null;
     this.state.currentNodeId = nodeId;
-    // Si el nodo de arranque YA es un nodo de cierre (hub/ending) — puede
-    // pasar si algo vuelve a llamar a open() sobre una localidad cuya
-    // historia ya terminó — no hay nada que renderizar: se resuelve de
-    // una, como haría _advanceToCurrent() con cualquier otro nodo así.
-    const node = NODE_BY_ID[nodeId];
-    if (node && node.type === 'hub') { this._finish('hub'); return; }
-    if (node && (node.type === 'ending' || nodeId === 'Revelación final')) { this._finish('ending'); return; }
     this._loadNode();
     this.setVisible(true);
-  }
-
-  // Como open(), pero antepone un comentario generado en vivo por "la
-  // entidad" sobre lo que realmente se ve en Street View en este momento
-  // (ver /api/entity-comment) como primera página — mientras se genera,
-  // muestra un estado de "pensando" corto. `fetchIntro` es una función
-  // que devuelve una Promise<string|null>; si falla o no hay texto, sigue
-  // directo al contenido normal sin romper nada.
-  openWithEntityIntro(nodeId, onDone, placeLabel, fetchIntro) {
-    this.open(nodeId, onDone, placeLabel);
-    if (!this.visible) return; // ya se resolvió como hub/ending en open()
-    const originalPages = this.pages;
-    this.pages = ['La entidad observa en silencio…', ...originalPages];
-    this.pageIndex = 0;
-    this._renderPage();
-    const applyIntro = (text) => {
-      // Si el jugador ya pasó de página (o cerró el diálogo) mientras se
-      // esperaba la respuesta, no se toca nada — evita que el arreglo de
-      // páginas cambie de largo debajo de un pageIndex que ya avanzó.
-      if (!this.visible || this.pageIndex !== 0) return;
-      this.pages = text ? [text, ...originalPages] : originalPages;
-      this._renderPage();
-    };
-    fetchIntro().then(applyIntro).catch(() => applyIntro(null));
   }
 
   _loadNode() {
@@ -143,8 +107,7 @@ export class DialogueBox {
 
   _renderPage() {
     const node = this.node;
-    const place = node.location ? node.location.toUpperCase() : 'BOGOTÁ';
-    this.nameText.setText(this._placeLabel ? `${place} — ${this._placeLabel}` : place);
+    this.nameText.setText(node.location ? node.location.toUpperCase() : 'BOGOTÁ');
     this.tagText.setText(this.state.momento ? this.state.momento.toUpperCase() : '');
     this.bodyText.setText(this.pages[this.pageIndex]);
     this._clearChoices();
@@ -213,14 +176,6 @@ export class DialogueBox {
       this._finish('hub');
     } else if (next && (next.type === 'ending' || this.state.currentNodeId === 'Revelación final')) {
       this._finish('ending');
-    } else if (next && isConvergenceNode(this.state.currentNodeId)) {
-      // Nodo de convergencia (2+ caminos llevan acá): pausa la
-      // conversación acá en vez de seguir de largo — el jugador la
-      // retoma exactamente donde quedó (state.currentNodeId ya apunta
-      // acá) desde cualquier punto de interés físico, más adelante. Así
-      // una sesión de diálogo dura 1-2 nodos, no los 6 de la localidad
-      // entera de una sentada.
-      this._finish('checkpoint');
     } else {
       this._loadNode();
     }
