@@ -2,14 +2,51 @@ import { NODE_BY_ID } from './storyData.js';
 import {
   PALETTE, FONT_DISPLAY, FONT_BODY, FONT_MONO,
   STAT_ORDER, LOCATIONS, STAT_BY_LOCATION, TRAITS,
-  AVATAR_MANIFEST, BACKGROUND_MANIFEST, WALKABLE_SCENES, assetUrl, avatarById,
+  AVATAR_MANIFEST, BACKGROUND_MANIFEST, WALKABLE_SCENES, AMBIENT_AUDIO, assetUrl, avatarById,
 } from './gameConfig.js';
 import { entityPolygonPoints } from './gameState.js';
 import { DialogueBox } from './dialogueBox.js';
 
+function stopAmbient(game) {
+  if (game.currentAmbientSound) {
+    game.currentAmbientSound.pause();
+    game.currentAmbientSound.src = '';
+    game.currentAmbientSound.load();
+  }
+  game.currentAmbientSound = null;
+  game.currentAmbientKey = null;
+}
+
+function playAmbient(scene, locality, isNight) {
+  const audio = AMBIENT_AUDIO[locality]?.[isNight ? 'night' : 'day'];
+  if (!audio) {
+    stopAmbient(scene.game);
+    return;
+  }
+
+  if (scene.game.currentAmbientKey === audio.key && scene.game.currentAmbientSound && !scene.game.currentAmbientSound.paused) return;
+  stopAmbient(scene.game);
+
+  const sound = new Audio(assetUrl(audio.path));
+  sound.loop = true;
+  sound.volume = audio.volume ?? 0.35;
+  sound.preload = 'auto';
+  scene.game.currentAmbientKey = audio.key;
+  scene.game.currentAmbientSound = sound;
+
+  const tryPlay = () => {
+    if (scene.game.currentAmbientSound !== sound) return;
+    sound.play().catch(() => {
+      scene.input.once('pointerdown', tryPlay);
+      scene.input.keyboard?.once('keydown', tryPlay);
+    });
+  };
+  tryPlay();
+}
+
 /* ============================================================
    ESCENA: BOOT — precarga assets + título + arranca el overlay
-   de configuración (nombre + avatar) antes de entrar al mapa.
+   de configuración antes de entrar al mapa.
    ============================================================ */
 export class BootScene extends Phaser.Scene {
   constructor() { super('BootScene'); }
@@ -61,6 +98,7 @@ export class BootScene extends Phaser.Scene {
 export class MapScene extends Phaser.Scene {
   constructor() { super('MapScene'); }
   create() {
+    stopAmbient(this.game);
     this.state = this.game.gState;
     const W = this.scale.width, H = this.scale.height;
     this.cameras.main.setBackgroundColor(PALETTE.night);
@@ -170,6 +208,7 @@ export class DialogueScene extends Phaser.Scene {
   constructor() { super('DialogueScene'); }
 
   create() {
+    stopAmbient(this.game);
     this.state = this.game.gState;
     const node = NODE_BY_ID[this.state.currentNodeId];
     const isNight = this.state.momento === 'Noche';
@@ -236,6 +275,7 @@ export class WalkScene extends Phaser.Scene {
     const isNight = this.state.momento === 'Noche';
     const W = this.scale.width;
     const b = cfg.bounds;
+    playAmbient(this, this.locality, isNight);
 
     this.cameras.main.setBackgroundColor(isNight ? cfg.groundColorNight : cfg.groundColorDay);
     this.drawSky(isNight, W);
@@ -488,6 +528,7 @@ export class WalkScene extends Phaser.Scene {
 export class EndingScene extends Phaser.Scene {
   constructor() { super('EndingScene'); }
   create() {
+    stopAmbient(this.game);
     const state = this.state = this.game.gState;
     const W = this.scale.width, H = this.scale.height;
     this.cameras.main.setBackgroundColor(PALETTE.night);

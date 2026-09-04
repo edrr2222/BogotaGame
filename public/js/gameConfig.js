@@ -85,6 +85,29 @@ export function avatarById(id) {
   return AVATAR_MANIFEST.find(a => a.id === id) || null;
 }
 
+export const AMBIENT_AUDIO = {
+  "Chapinero": {
+    day: { key: 'ambient_chapinero_day', path: 'Chapinero/sonidos/chapinero_dia.mp4', volume: 0.35 },
+    night: { key: 'ambient_chapinero_night', path: 'Chapinero/sonidos/chapinero_noche.mp4', volume: 0.35 },
+  },
+  "Kennedy": {
+    day: { key: 'ambient_kennedy_day', path: 'Kennedy/sonidos/kennedy_dia.mp4', volume: 0.35 },
+    night: { key: 'ambient_kennedy_night', path: 'Kennedy/sonidos/kennedy_noche.mp4', volume: 0.35 },
+  },
+  "Suba": {
+    day: { key: 'ambient_suba_day', path: 'Suba/sonidos/suba_dia.mp4', volume: 0.35 },
+    night: { key: 'ambient_suba_night', path: 'Suba/sonidos/suba_noche.mp4', volume: 0.35 },
+  },
+  "Puente Aranda": {
+    day: { key: 'ambient_puente_aranda_day', path: 'Puente_Aranda/sonidos/puente_aranda_dia.mp4', volume: 0.35 },
+    night: { key: 'ambient_puente_aranda_night', path: 'Puente_Aranda/sonidos/puente_aranda_noche.mp4', volume: 0.35 },
+  },
+  "Usme": {
+    day: { key: 'ambient_usme_day', path: 'Usme/sonidos/usme_dia.ogg', volume: 0.35 },
+    night: { key: 'ambient_usme_night', path: 'Usme/sonidos/usme_noche.ogg', volume: 0.35 },
+  },
+};
+
 // Fondos por localidad para DialogueScene: capas dibujadas de atrás hacia
 // adelante detrás del panel de texto. Ahora solo lo usan Chapinero y
 // Kennedy (las únicas 2 sin escenario caminable en WALKABLE_SCENES) — y
