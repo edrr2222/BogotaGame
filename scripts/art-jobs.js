@@ -318,7 +318,10 @@ elevation street-wall view, flat pixel-art style, not photorealistic.`, '16:9'),
 
   // --- San Cristóbal: NPC + 3 pantallas + prop propio ---
   icon('San Cristóbal', 'ai_npc_sancristobal', 'SanCristobal/generado/npc_espalda.png',
-    'a teenage girl pedestrian seen from behind (back view), simple casual clothes, standing still, on a hillside street.'),
+    `a teenage girl pedestrian seen from behind (back view), simple casual
+clothes, standing still. ONLY the character — no ground, no floor, no grass,
+no path, no shadow, no scenery of any kind beneath or around her feet, just
+the solid magenta background like every other isolated icon asset.`),
   icon('San Cristóbal', 'ai_sancristobal_escalera', 'SanCristobal/generado/escalera.png',
     `a steep flight of narrow concrete stairs built into a hillside street in
 San Cristóbal, Bogotá, with a simple metal handrail — a common way to

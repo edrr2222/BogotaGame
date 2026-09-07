@@ -241,7 +241,7 @@ export const WALKABLE_SCENES = {
         streetscape: { key: 'streetscape_sancristobal_1', path: 'SanCristobal/generado/streetscape_1.png' },
         npc: { key: 'npc_sancristobal', path: 'SanCristobal/generado/npc_espalda.png', x: 540, y: 645 },
         props: [
-          { key: 'prop_sancristobal_escalera', path: 'SanCristobal/generado/escalera.png', x: 250, y: 595, scale: 0.14, depth: 1 },
+          { key: 'prop_sancristobal_reja', path: GENERIC.reja, x: 250, y: 595, scale: 0.1, depth: 1 },
           { key: 'prop_sancristobal_arbusto', path: GENERIC.arbusto1, x: 130, y: 630, scale: 0.08, depth: 2 },
           { key: 'prop_sancristobal_caneca', path: GENERIC.caneca, x: 620, y: 630, scale: 0.07, depth: 2 },
         ],
