@@ -42,8 +42,8 @@ export const TRAITS = {
    MANIFIESTO DE ASSETS — todo generado con Gemini (ver
    scripts/generate-art.js y scripts/art-jobs.js), en un mismo
    estilo plano consistente. Nada de assets/ original queda
-   referenciado aquí. Chapinero y Kennedy siguen sin fondo propio
-   (DialogueScene cae al color liso/vectorial para esas dos).
+   referenciado aquí. Las 8 localidades tienen escenario caminable
+   propio en WALKABLE_SCENES.
    ============================================================ */
 
 // Avatares seleccionables al personalizar el personaje. Cada uno tiene 4
@@ -109,10 +109,9 @@ export const AMBIENT_AUDIO = {
 };
 
 // Fondos por localidad para DialogueScene: capas dibujadas de atrás hacia
-// adelante detrás del panel de texto. Ahora solo lo usan Chapinero y
-// Kennedy (las únicas 2 sin escenario caminable en WALKABLE_SCENES) — y
-// ninguna de las dos tiene arte propio, así que quedan con el fondo de
-// color liso existente. Las 6 localidades caminables ya no pasan por acá.
+// adelante detrás del panel de texto. Ya no lo usa ninguna localidad — las
+// 8 tienen escenario caminable propio en WALKABLE_SCENES. Se deja vacío
+// como fallback por si en el futuro se agrega una localidad sin escenario.
 export const BACKGROUND_MANIFEST = {};
 
 /* ============================================================
@@ -127,7 +126,7 @@ export const BACKGROUND_MANIFEST = {};
    camine por encima de los techos ni flotando en el cielo.
    `pathTiles` son las variantes de baldosa que se van alternando a
    lo largo de ese carril.
-   Solo 2 localidades por ahora: La Candelaria y Suba.
+   Las 8 localidades tienen escenario caminable.
    ============================================================ */
 const WALK_BOUNDS = { x: 30, y: 90, w: 660, h: 400 };
 // Carril caminable dentro de la banda plana que queda debajo del streetscape
@@ -353,6 +352,71 @@ export const WALKABLE_SCENES = {
         busStop: { ...BUS_STOP, x: 500, y: 645 },
         props: [
           { key: 'prop_usme_arbusto2', path: GENERIC.arbusto2, x: 200, y: 630, scale: 0.08, depth: 2 },
+        ],
+      },
+    ],
+  },
+  "Chapinero": {
+    ...DEFAULT_WALK,
+    pathTiles: [
+      { key: 'floor_candelaria_1', path: 'Candelaria/generado/piso_acera.png' },
+      { key: 'floor_candelaria_2', path: 'Candelaria/generado/piso_acera_2.png' },
+      { key: 'floor_candelaria_3', path: 'Candelaria/generado/piso_acera_3.png' },
+    ],
+    screens: [
+      {
+        streetscape: { key: 'streetscape_chapinero_1', path: 'Chapinero/generado/streetscape_1.png' },
+        npc: { key: 'npc_chapinero', path: 'Chapinero/generado/npc_espalda.png', x: 540, y: 645 },
+        props: [
+          { key: 'prop_chapinero_letrero', path: 'Chapinero/generado/letrero_neon.png', x: 250, y: 595, scale: 0.09, depth: 1 },
+          { key: 'prop_chapinero_maceta', path: GENERIC.maceta, x: 130, y: 630, scale: 0.07, depth: 2 },
+          { key: 'prop_chapinero_caneca', path: GENERIC.caneca, x: 620, y: 630, scale: 0.07, depth: 2 },
+        ],
+      },
+      {
+        streetscape: { key: 'streetscape_chapinero_2', path: 'Chapinero/generado/streetscape_2.png' },
+        props: [
+          { key: 'prop_chapinero_poste', path: GENERIC.postePared, x: 350, y: 590, scale: 0.1, depth: 1 },
+          { key: 'prop_chapinero_carro', path: GENERIC.carro, x: 600, y: 630, scale: 0.11, depth: 2 },
+        ],
+      },
+      {
+        streetscape: { key: 'streetscape_chapinero_3', path: 'Chapinero/generado/streetscape_3.png' },
+        busStop: { ...BUS_STOP, x: 500, y: 645 },
+        props: [
+          { key: 'prop_chapinero_banco', path: GENERIC.banco, x: 200, y: 630, scale: 0.07, depth: 2 },
+        ],
+      },
+    ],
+  },
+  "Kennedy": {
+    ...DEFAULT_WALK,
+    pathTiles: [
+      { key: 'floor_suba_1', path: 'Suba/generado/piso_1.png' },
+      { key: 'floor_suba_2', path: 'Suba/generado/piso_2.png' },
+      { key: 'floor_suba_3', path: 'Suba/generado/piso_3.png' },
+    ],
+    screens: [
+      {
+        streetscape: { key: 'streetscape_kennedy_1', path: 'Kennedy/generado/streetscape_1.png' },
+        npc: { key: 'npc_kennedy', path: 'Kennedy/generado/npc_espalda.png', x: 540, y: 645 },
+        props: [
+          { key: 'prop_kennedy_porteria', path: 'Kennedy/generado/porteria_futbol.png', x: 250, y: 630, scale: 0.11, depth: 2 },
+          { key: 'prop_kennedy_arbusto', path: GENERIC.arbusto1, x: 130, y: 630, scale: 0.08, depth: 2 },
+        ],
+      },
+      {
+        streetscape: { key: 'streetscape_kennedy_2', path: 'Kennedy/generado/streetscape_2.png' },
+        props: [
+          { key: 'prop_kennedy_poste', path: GENERIC.posteIso, x: 400, y: 590, scale: 0.13, depth: 1 },
+          { key: 'prop_kennedy_caneca', path: GENERIC.caneca, x: 600, y: 630, scale: 0.07, depth: 2 },
+        ],
+      },
+      {
+        streetscape: { key: 'streetscape_kennedy_3', path: 'Kennedy/generado/streetscape_3.png' },
+        busStop: { ...BUS_STOP, x: 500, y: 645 },
+        props: [
+          { key: 'prop_kennedy_arbol', path: GENERIC.arbol1, x: 180, y: 600, scale: 0.13, depth: 2 },
         ],
       },
     ],

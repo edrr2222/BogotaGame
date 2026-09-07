@@ -446,6 +446,78 @@ growing through it.`),
     `a small square tile of a rural dirt/gravel path from Usme, Bogotá,
 seamless/tileable texture, viewed from directly above, flat, no shadow —
 same style as a plain dirt path tile, but with a small puddle or wet patch.`),
+
+  // --- Chapinero: NPC + 3 pantallas + prop propio ---
+  icon('Chapinero', 'ai_npc_chapinero', 'Chapinero/generado/npc_espalda.png',
+    `a stylish young adult pedestrian seen from behind (back view), trendy
+urban casual clothes (fitted jacket, jeans), standing still. ONLY the
+character — no ground, no floor, no shadow, no scenery of any kind beneath
+or around their feet, just the solid magenta background like every other
+isolated icon asset.`),
+  icon('Chapinero', 'ai_chapinero_letrero', 'Chapinero/generado/letrero_neon.png',
+    `a small hanging illuminated round neon sign frame for a bar/cafe
+storefront in Chapinero, Bogotá — simple glowing warm pink/orange outline
+shape (no text, no logo, no readable letters), black metal frame and
+mounting bracket. ONLY the sign itself — no wall, no ground, no shadow,
+just the solid magenta background like every other isolated icon asset.`),
+  scene('Chapinero', 'ai_chapinero_streetscape1', 'Chapinero/generado/streetscape_1.png',
+    `a continuous row of colorful commercial building facades in Chapinero,
+Bogotá, filling the frame edge to edge with NO gaps — small cafes and bars
+with painted storefronts, string lights strung along the top edge, mixed
+modern glass fronts and older republican-style brick buildings, narrow
+paved sidewalk in the foreground. Storefronts have NO signs, NO lettering,
+NO readable or gibberish text anywhere on any wall or window — plain
+awnings and blank sign boards only. Soft daytime sky. Front elevation
+street-wall view, flat pixel-art style, not photorealistic.`, '16:9'),
+  scene('Chapinero', 'ai_chapinero_streetscape2', 'Chapinero/generado/streetscape_2.png',
+    `a continuous row of commercial building facades in Chapinero, Bogotá —
+a different stretch, restaurant and bar fronts with awnings and outdoor
+seating, a colorful abstract mural painted on one wall. Storefronts have
+NO signs, NO lettering, NO readable or gibberish text anywhere on any wall,
+window or awning — plain awnings and blank sign boards only, and the mural
+is purely abstract/floral with no words in it. Narrow paved sidewalk. Soft
+daytime sky. Front elevation street-wall view, flat pixel-art style, not
+photorealistic.`, '16:9'),
+  scene('Chapinero', 'ai_chapinero_streetscape3', 'Chapinero/generado/streetscape_3.png',
+    `a continuous row of buildings in Chapinero, Bogotá, near a small plaza
+where the street opens up briefly for a bus stop — a mix of modern
+apartment buildings and low commercial fronts, a couple of trees along the
+sidewalk edge. Soft daytime sky. Front elevation street-wall view, flat
+pixel-art style, not photorealistic.`, '16:9'),
+
+  // --- Kennedy: NPC + 3 pantallas + prop propio ---
+  icon('Kennedy', 'ai_npc_kennedy', 'Kennedy/generado/npc_espalda.png',
+    `an adult pedestrian seen from behind (back view), casual sporty
+clothes (t-shirt, jeans, sneakers), standing still. ONLY the character —
+no ground, no floor, no shadow, no scenery of any kind beneath or around
+their feet, just the solid magenta background like every other isolated
+icon asset.`),
+  icon('Kennedy', 'ai_kennedy_porteria', 'Kennedy/generado/porteria_futbol.png',
+    `a small simple street soccer goal post (portería), white metal pipe
+frame with a plain net, no ball, no field markings. ONLY the goal itself —
+no ground, no grass, no shadow, just the solid magenta background like
+every other isolated icon asset.`),
+  scene('Kennedy', 'ai_kennedy_streetscape1', 'Kennedy/generado/streetscape_1.png',
+    `a continuous row of nearly identical mid-rise public-housing apartment
+blocks in Kennedy, Bogotá, filling the frame edge to edge with NO gaps —
+beige and orange painted concrete facades, repeating rows of small windows
+and simple balconies, some laundry hanging from a balcony, paved road in
+the foreground. Soft daytime sky. Front elevation street-wall view, flat
+pixel-art style, not photorealistic.`, '16:9'),
+  scene('Kennedy', 'ai_kennedy_streetscape2', 'Kennedy/generado/streetscape_2.png',
+    `a continuous row of mid-rise apartment blocks in Kennedy, Bogotá — a
+different stretch with a small neighborhood corner store (tienda de
+barrio) with a colorful awning built into the ground floor, more housing
+blocks behind. Soft daytime sky. Front elevation street-wall view, flat
+pixel-art style, not photorealistic.`, '16:9'),
+  scene('Kennedy', 'ai_kennedy_streetscape3', 'Kennedy/generado/streetscape_3.png',
+    `a row of apartment blocks in Kennedy, Bogotá, near a small paved plaza
+with a bus stop where the street opens up briefly — a couple of trees and
+a low park edge visible, apartment towers in the background. The
+illustration must fill the ENTIRE frame edge to edge with no blank/white
+margins on any side — sky and buildings all the way to every edge of the
+canvas. Soft daytime sky. Front elevation street-wall view, flat pixel-art
+style, not photorealistic.`, '16:9'),
 ];
 
 const AVATAR_DEFS = [
