@@ -3,22 +3,6 @@
 // (localidades caminables + las otras) para que la lógica de la historia no
 // se duplique ni se desalinee entre las dos presentaciones.
 
-import { STORY_NODES } from './storyData.js';
-
-// Cuántas opciones de OTROS nodos apuntan a este — cada árbol de localidad
-// tiene la misma forma (Entrada -> 2 caminos -> nodo de convergencia -> 2
-// caminos -> Cierre -> Selector), así que un nodo con 2+ nodos apuntándole
-// es, por construcción, un punto natural donde la conversación puede
-// pausarse y retomarse después en otro punto físico — sin tener que marcar
-// esto a mano nodo por nodo. Se calcula una sola vez, no por locación.
-const _indegree = {};
-STORY_NODES.forEach(n => (n.choices || []).forEach(c => {
-  _indegree[c.target] = (_indegree[c.target] || 0) + 1;
-}));
-export function isConvergenceNode(nodeId) {
-  return (_indegree[nodeId] || 0) >= 2;
-}
-
 export function resolveText(node, momento) {
   if (!node.text) return '';
   if (typeof node.text === 'string') return node.text;
