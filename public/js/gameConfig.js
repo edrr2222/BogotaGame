@@ -119,7 +119,10 @@ export const STREETVIEW_POINTS = {
   },
   "San Cristóbal": {
     pois: [
-      { lat: 4.564500, lng: -74.096900, label: '20 de Julio' },
+      // Ajustado: la coordenada original caía en una calle residencial
+      // genérica sin nada de la zona; este punto cae justo en el Portal
+      // 20 de Julio (buses + el cerro de San Cristóbal de fondo).
+      { lat: 4.566500, lng: -74.096100, label: '20 de Julio' },
       { lat: 4.574325, lng: -74.076415, label: 'Vitelma' },
     ],
     viajar: { lat: 4.565000, lng: -74.096940, label: 'Portal 20 de Julio' },
@@ -154,7 +157,10 @@ export const STREETVIEW_POINTS = {
   },
   "Kennedy": {
     pois: [
-      { lat: 4.611067, lng: -74.175698, label: 'Parque Timiza' },
+      // Ajustado: la coordenada original caía en una calle residencial
+      // sin nada del parque visible; este punto cae en la vía arbolada
+      // bordeando Parque Timiza, con el verde del parque a la vista.
+      { lat: 4.613500, lng: -74.173500, label: 'Parque Timiza' },
       { lat: 4.628000, lng: -74.166000, label: 'Biblioteca El Tintal' },
     ],
     viajar: { lat: 4.625500, lng: -74.153200, label: 'Estación Banderas' },
