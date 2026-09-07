@@ -5,9 +5,39 @@
 // Dos tipos de encargo:
 //  - 'icon'  -> sprite suelto (personaje/prop): fondo magenta sólido de
 //               referencia que generate-art.js recorta por chroma-key.
-//  - 'scene' -> fondo panorámico de una localidad (usado detrás del panel
-//               de diálogo, ya con su propio tinte/alpha aplicado por
-//               código): se guarda tal cual, sin recortar nada.
+//  - 'scene' -> fondo panorámico de una pantalla de localidad (una fila
+//               CONTINUA de fachadas, usado a pantalla casi completa por
+//               WalkScene): se guarda tal cual, sin recortar nada.
+//
+// ---------------------------------------------------------------------
+// REGLAS DE COHERENCIA VISUAL — válidas para CUALQUIER localidad nueva
+// (Chapinero, Kennedy, o las que se agreguen después). No son solo para
+// las 6 de hoy: WalkScene ya aplica el mismo layout a cualquier localidad
+// con `screens` en WALKABLE_SCENES, así que lo único que hay que cuidar al
+// agregar una nueva es seguir esto mismo:
+//
+// 1. El streetscape ('scene') SIEMPRE debe traer el piso/calle PINTADO
+//    como parte de la misma ilustración continua (edificios + acera en
+//    una sola imagen) — nunca solo la fachada cortada arriba con nada
+//    abajo. WalkScene lo dibuja a 600px de alto; lo que quede por debajo
+//    de la imagen es un color liso (sin textura aparte), así que la
+//    "calle" real tiene que estar DENTRO de la imagen, no depender de una
+//    textura de piso separada.
+// 2. Los props sueltos ('icon') que se posicionan ENCIMA del streetscape
+//    (ver WALKABLE_SCENES en gameConfig.js) deben poder pararse sobre
+//    CUALQUIER piso liso sin necesitar su propia superficie pintada —
+//    árboles, bancas, postes, señales, vallas, macetas, canecas,
+//    vehículos. NO agregar cosas que solo tienen sentido con una
+//    superficie propia (una cancha, una piscina, un tapete) salvo que esa
+//    superficie esté pintada DENTRO del streetscape mismo, no como un
+//    ícono aparte flotando sobre el piso liso.
+// 3. Ubicación en pantalla (ver gameConfig.js): props "de fondo" (contra
+//    la fachada, ej. un letrero o una reja de ventana) van en y≈590-600;
+//    props "de piso" (banca, poste, vehículo, seña de tránsito) van en
+//    y≈620-650; el NPC y la parada de bus van en y≈645. Esto no es
+//    arbitrario — es donde queda la base de los edificios con el
+//    streetscape dibujado a 600px de alto.
+// ---------------------------------------------------------------------
 
 const ICON_STYLE = `Flat 2D pixel-art game asset, front-facing elevation view
 (NOT isometric, NOT 3D-rendered, no perspective/depth shading, no gradients) —
@@ -20,7 +50,13 @@ const SCENE_STYLE = `Flat 2D pixel-art game background illustration, wide
 landscape composition, front/side elevation view (NOT isometric, NOT
 photorealistic, no 3D perspective rendering) — same simple flat cel-shaded
 pixel-art style as a 16-bit RPG background. No text, no logos, no watermark,
-no signature, no UI, no border, no captions baked into the image.`;
+no signature, no UI, no border, no captions baked into the image. The
+illustration MUST include a properly painted street/sidewalk ground running
+along the entire bottom edge, as part of the same continuous scene as the
+buildings above it — not just a thin line, a real foreground street band
+with visible texture (paving, cracks, a curb) that a character could
+convincingly stand on. This is a complete street scene from rooftop to
+ground, not a building facade cutout with nothing underneath.`;
 
 function icon(locality, key, outFile, subject) {
   return { type: 'icon', locality, key, outFile, prompt: `${ICON_STYLE}\n\nSubject: ${subject}` };
